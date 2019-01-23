@@ -6,9 +6,13 @@ This project aims to make a statistical model for mosquito control accessible to
 
  - Code for R shiny application
  - Code for statistical model underlying application
- - Project mgmt/group communication 
+ - [Project](https://github.com/collinschwantes/MosquitoApp/projects/1) mgmt/group communication 
  - Instructions for using the application 
     - example CSVs for uploading
     - Model interpretation 
     - disclaimer 
+    
+**Please** use the [Issues tab](https://github.com/collinschwantes/MosquitoApp/issues) to propose enhancements, propose new features, report bugs, or make other project related suggestions. 
+
+ 
  
