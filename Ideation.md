@@ -80,10 +80,10 @@ Sharon will
 Collin GUI
 Sharon - will develop model
 Ellie - will be helping on fine points of model
- - Independent contractor 
-  - payment on installments
-  - payments on delivery 
 
+### 
+
+areas
 
 
 
