@@ -205,16 +205,45 @@ $(document).ready(function () {
 <div id="variables" class="section level2">
 <h2>variables:</h2>
 <p>x(t) = vector population at time t<br />
-Λ(t) = time varying emergence rate<br />
-1/µ = natural vector lifetime</p>
+Λ(t) = time varying emergence rate (genus or species specific, likely temp dependent as well)<br />
+1/µ = natural vector lifetime (species and temp dependent) τ = year/season/period N = noisy mosquito pop estimates/impulses λ = emergence rate</p>
+<p>populations based soley on females?</p>
 </div>
 <div id="potential-pain-points" class="section level2">
 <h2>potential pain points</h2>
 <ul>
-<li>date formats</li>
-<li>species names</li>
+<li>date formats -
+<ul>
+<li>specify date format on entry</li>
+<li>look for non-sequential entries (provide warning)</li>
+<li>provide a guess date format option (?)</li>
+<li>use lubridate to convert to standard date format</li>
+</ul></li>
+<li>species names
+<ul>
+<li>use GBIF namesearch</li>
+<li>provide warning for unrecognized species name</li>
+<li>read in data, check names, allow user to correct
+<ul>
+<li>data -&gt; names summary -&gt; provide correction option</li>
+</ul></li>
+</ul></li>
 <li>multi trap type datasets</li>
-<li>multi species type datasets</li>
+<li>specify trap type or muilt</li>
+<li>multi species type datasets
+<ul>
+<li>select species of interest</li>
+</ul></li>
+<li>geocode data -
+<ul>
+<li>address lookup if lat long not provided</li>
+<li>can use geocode to get covariates</li>
+</ul></li>
+<li>missing time points
+<ul>
+<li>sharon says interpolate</li>
+<li>need to figure out if model is robust to NA’s</li>
+</ul></li>
 </ul>
 <p>Use the population data to determine a schedule for Np impulses to occur over a year, assuming that each impulse reduces the vector population by a fraction ρ. Let z = (z1, z2, …, zp) denote the timing of the Np impulses</p>
 </div>

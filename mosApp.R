@@ -1,20 +1,33 @@
 ## UI
 library(shiny)
-
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
 
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
+      fluidRow(
       fileInput("file1", "Choose CSV File",
                 accept = c(
                   "text/csv",
                   "text/comma-separated-values,text/plain",
                   ".csv")
       ),
+      checkboxInput("header", "Header", TRUE),
       tags$hr(),
-      checkboxInput("header", "Header", TRUE)
+      selectInput("Trap Type", "Options:",
+                  c("Oviposition" = "ovi",
+                    "Light" = "lig",
+                    "CO2" = "CO2  ")),
+      tableOutput("data")
+      ),
+      fluidRow(
+        textOutput("dataSummary")
+      )
     ),
     mainPanel(
+      plotOutput("MosPopPlot"),
       dataTableOutput("contents")
     )
   )
@@ -42,6 +55,28 @@ server <- function(input, output) {
      
      dataFile()
   })
+   
+   output$MosPopPlot <- renderPlot({
+     
+     if (is.null(dataFile())) 
+       return(NULL)
+     
+       ggplot(data = dataFile(),aes_string(x = dataFile()$dateCollected, 
+                                           y = dataFile()$count)) +
+       geom_point()
+   
+    })
+   
+   output$dataSummary <- renderPrint({
+     
+     if (is.null(dataFile())) 
+       return(NULL)
+     
+     str(dataFile())
+       
+     
+   })
+   
 }
 
 shinyApp(ui, server)

@@ -29,7 +29,7 @@ for(i in 2:length(t)) {
 counts <-  map_dbl(.x = pops,.f = rbind)
 
 SynData <- data.frame(
-  Date = Sys.Date() + 1:50,
+  dateCollected = Sys.Date() + 1:50,
   TrapType = "Ovisposition",
   Species = "Culex pipiens",
   Sex = "Female",
@@ -40,4 +40,8 @@ SynData <- data.frame(
 SynData %>% 
   ggplot(aes(x = Date,y = count)) +
   geom_point()
+
+dir.create("./SyntheticData")
+
+SynData %>% write.csv(file = "./SyntheticData/Culex.csv")
 

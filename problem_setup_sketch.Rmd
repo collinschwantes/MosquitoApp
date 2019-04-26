@@ -27,25 +27,25 @@ populations based soley on females?
 ## potential pain points
 
 - date formats - 
-  - specify date format on entry
-  - look for non-sequential entries (provide warning)
-  - provide a guess date format option (?)
-  - use lubridate to convert to standard date format
+    - specify date format on entry
+    - look for non-sequential entries (provide warning)
+    - provide a guess date format option (?)
+    - use lubridate to convert to standard date format
 - species names
-  - use GBIF namesearch 
-  - provide warning for unrecognized species name
-  - read in data, check names, allow user to correct
-    - data -> names summary -> provide correction option 
+    - use GBIF namesearch 
+    - provide warning for unrecognized species name
+    - read in data, check names, allow user to correct
+        - data -> names summary -> provide correction option 
 - multi trap type datasets
-  - specify trap type or muilt
+   - specify trap type or muilt
 - multi species type datasets 
-  - select species of interest
+    - select species of interest
 - geocode data - 
-  - address lookup if lat long not provided
-  - can use geocode to get covariates
+    - address lookup if lat long not provided
+    - can use geocode to get covariates
 - missing time points
-  - sharon says interpolate 
-  - need to figure out if model is robust to NA's 
+    - sharon says interpolate 
+    - need to figure out if model is robust to NA's 
   
 
 
