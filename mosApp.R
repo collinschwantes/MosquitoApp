@@ -27,8 +27,11 @@ ui <- fluidPage(
       )
     ),
     mainPanel(
-      plotOutput("MosPopPlot"),
-      dataTableOutput("contents")
+      tabsetPanel(
+        tabPanel("Data Summary",plotOutput("MosPopPlot"),
+                 dataTableOutput("contents")),
+        tabPanel("Model Outputs")
+      )
     )
   )
 )
@@ -73,9 +76,14 @@ server <- function(input, output) {
        return(NULL)
      
      str(dataFile())
+     
+     ## add GBIF backbone
+     ## show historical trends?
        
      
    })
+   
+  # output$ModelResults 
    
 }
 
