@@ -33,11 +33,11 @@ populations based soley on females?
     - use lubridate to convert to standard date format
 - species names
     - use GBIF namesearch 
-    - provide warning for unrecognized species name
-    - read in data, check names, allow user to correct
+    - provide warning for unrecognized species name 
+    - read in data, check names, allow user to correct 
         - data -> names summary -> provide correction option 
 - multi trap type datasets
-   - specify trap type or muilt
+   - specify trap type or multi
 - multi species type datasets 
     - select species of interest
 - geocode data - 
