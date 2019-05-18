@@ -16,14 +16,20 @@ ui <- fluidPage(
       ),
       checkboxInput("header", "Header", TRUE),
       tags$hr(),
-      selectInput("Trap Type", "Options:",
+      selectInput("TrapType", "Options:",
                   c("Oviposition" = "ovi",
                     "Light" = "lig",
                     "CO2" = "CO2  ")),
+      selectInput("Count", "Count Data Column:",
+                  c("No data uploaded data" = "NoData")
+                  ),
+      selectInput("Date", "Date Column:",
+                  c("No data uploaded data" = "NoData")
+                  ),
       tableOutput("data")
       ),
       fluidRow(
-        textOutput("dataSummary")
+        #textOutput("dataSummary")
       )
     ),
     mainPanel(
@@ -36,7 +42,7 @@ ui <- fluidPage(
   )
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   dataFile <- reactive({
     infile <- input$file1
@@ -45,6 +51,33 @@ server <- function(input, output) {
       return(NULL)
     
     read.csv(infile$datapath, header = input$header)
+  })
+  
+  ## update selection inputs
+  observe({
+    
+    x <- dataFile()
+    
+    # Can use character(0) to remove all choices
+    if (is.null(x))
+      x <- character(0)
+    
+    # Can also set the label and select items
+    
+    ColNames <- names(x)
+    
+    updateSelectInput(session, "Date",
+                      label = "Date Column",
+                      choices = ColNames,
+                      selected = tail(x, 1)
+    )
+    
+    updateSelectInput(session, "Count",
+                      label = "Count Column",
+                      choices = ColNames,
+                      selected = tail(x, 1)
+    )
+    
   })
   
   
