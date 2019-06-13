@@ -1,10 +1,14 @@
 ## UI
 library(shiny)
+library(shiny)
 library(dplyr)
 library(ggplot2)
 library(tidyverse)
+library(readr)
+library(shinythemes)
 
 ui <- fluidPage(
+  theme = shinytheme("darkly"),
   sidebarLayout(
     sidebarPanel(
       fluidRow(
@@ -16,14 +20,14 @@ ui <- fluidPage(
       ),
       checkboxInput("header", "Header", TRUE),
       tags$hr(),
-      selectInput("TrapType", "Options:",
+      selectInput("TrapType", "Trap Type:",
                   c("Oviposition" = "ovi",
                     "Light" = "lig",
                     "CO2" = "CO2  ")),
-      selectInput("Count", "Count Data Column:",
+      selectInput("Count", "Count Data:",
                   c("No data uploaded data" = "NoData")
                   ),
-      selectInput("Date", "Date Column:",
+      selectInput("Date", "Date:",
                   c("No data uploaded data" = "NoData")
                   ),
       tableOutput("data")
@@ -34,7 +38,8 @@ ui <- fluidPage(
     ),
     mainPanel(
       tabsetPanel(
-        tabPanel("Data Summary",plotOutput("MosPopPlot"),
+        tabPanel("Data Summary",
+                 plotOutput("MosPopPlot"),
                  dataTableOutput("contents")),
         tabPanel("Model Outputs")
       )
@@ -92,14 +97,16 @@ server <- function(input, output, session) {
      dataFile()
   })
    
-   output$MosPopPlot <- renderPlot({
+   output$MosPopPlot <- renderPlot(bg = "transparent",{
      
      if (is.null(dataFile())) 
        return(NULL)
      
        ggplot(data = dataFile(),aes_string(x = dataFile()$dateCollected, 
                                            y = dataFile()$count)) +
-       geom_point()
+       geom_point(color = "white") +
+         theme_minimal() +
+         theme(panel.grid  =  element_line(colour = "dark grey"))
    
     })
    
