@@ -74,13 +74,13 @@ server <- function(input, output, session) {
     updateSelectInput(session, "Date",
                       label = "Date Column",
                       choices = ColNames,
-                      selected = tail(x, 1)
+                      selected = tail(x,1)
     )
     
     updateSelectInput(session, "Count",
                       label = "Count Column",
                       choices = ColNames,
-                      selected = tail(x, 1)
+                      selected = tail(x,1)
     )
     
   })
@@ -100,14 +100,22 @@ server <- function(input, output, session) {
    output$MosPopPlot <- renderPlot(bg = "transparent",{
      
      if (is.null(dataFile())) 
-       return(NULL)
+       return(NULL) 
      
-       ggplot(data = dataFile(),aes_string(x = dataFile()$dateCollected, 
-                                           y = dataFile()$count)) +
-       geom_point(color = "white") +
+     if (input$Count == "NoData") {
+      stop("Select Count Column")
+     }
+     
+     if (input$Date == "NoData") {
+       stop("Select Date Column")
+     }
+     
+     dataFile() %>% 
+       ggplot(aes_string(x = input$Date, y = input$Count)) +
+       geom_point(color = "white", alpha = .3) +
          theme_minimal() +
          theme(panel.grid  =  element_line(colour = "dark grey"))
-   
+       
     })
    
    output$dataSummary <- renderPrint({
