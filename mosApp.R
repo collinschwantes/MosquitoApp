@@ -8,6 +8,7 @@ library(readr)
 library(shinythemes)
 library(sf)
 library(leaflet)
+library(raster)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
@@ -50,7 +51,8 @@ ui <- fluidPage(
                  plotOutput("MosPopPlot"),
                  dataTableOutput("contents")),
         tabPanel("Summary Map",
-                 leafletOutput("DensityMap")),
+                 leafletOutput("DensityMap"),
+                 sliderInput(inputId = "Date",label = "Date Slider",min = 0,max = 100,value = 10,step = 1)),
         tabPanel("Model Outputs")
       )
     )
@@ -155,18 +157,61 @@ server <- function(input, output, session) {
        stop("Select Longitude Column")
      }
      
-     #create grid
+     
+     if (input$Count == "NoData") {
+       stop("Select Count Column")
+     }
+     
+     #create density grid
      
     bbox <- dataFile() %>% 
-       summarize_at(vars(input$Lat,input$Lon), .funs = funs(min,max))
+       summarize_at(vars(input$Lat,input$Lon), .funs = funs(min,max)) %>% 
+      gather() %>% 
+      as.data.frame()
     
-    str(bbox)
+    NumRow <- bbox[3,2] - bbox[1,2] / 0.01
+    NumCol <- bbox[4,2] - bbox[4,2] / 0.01
     
-    print(pull(bbox) 
-    bbox_hex  <- st_bbox(c(xmin = bbox[1,2][[1]], xmax = bbox[1,4][[1]], ymax = bbox[1,3][[1]], ymin = bbox[1,1][[1]]), crs = st_crs(4326))
-     
-   # class(bbox_hex) 
-     
+    #mosRas <- raster(nrows = NumRow, ncols = NumCol)
+    
+    mospoints <- dataFile() %>% 
+      st_as_sf(coords = c(input$Lat,input$Lon),crs = 3857)
+    
+    #str(mospoints)
+   
+    #will want to filter mospoints 
+    
+    mos_sp <- as(mospoints, "Spatial")
+    
+    str(mos_sp)
+    
+   # str(mos_sp)
+    
+    #create raster
+    mosRas <- raster()
+    
+    #give same spatial attributes as sp object
+    extent(mosRas) <- extent(mos_sp)
+    res(mosRas) <- 0.001
+    
+    str(mosRas)
+    #seems to be breaking here
+    
+    denRas <- rasterize(x = mos_sp, y = mosRas, field = 'count', fun = mean)
+    
+    summary(denRas)
+    
+    #add leaflet map
+    pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#FFFFCC"), values(denRas),
+                        na.color = "grey")
+    
+    leaflet() %>% 
+      addProviderTiles(providers$Stamen.Toner) %>%
+      addRasterImage(denRas, colors = pal, opacity = 0.8,project = T) %>%
+      addLegend(pal = pal, values = values(denRas),
+                title = "Mean Count") 
+    
+    
    })
    
    output$dataSummary <- renderPrint({
