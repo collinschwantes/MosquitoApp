@@ -53,7 +53,7 @@ ui <- fluidPage(
         tabPanel("Summary Map",
                  tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
                  leafletOutput("DensityMap"),
-                 sliderInput(inputId = "Res",label = "Date Slider",min = 0.001,max = 0.1,value = .05,step = .005)),
+                 sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Model Outputs")
       )
     )
