@@ -51,8 +51,9 @@ ui <- fluidPage(
                  plotOutput("MosPopPlot"),
                  dataTableOutput("contents")),
         tabPanel("Summary Map",
+                 tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
                  leafletOutput("DensityMap"),
-                 sliderInput(inputId = "Date",label = "Date Slider",min = 0,max = 100,value = 10,step = 1)),
+                 sliderInput(inputId = "Res",label = "Date Slider",min = 0.001,max = 0.1,value = .05,step = .005)),
         tabPanel("Model Outputs")
       )
     )
@@ -164,14 +165,7 @@ server <- function(input, output, session) {
      
      #create density grid
      
-    bbox <- dataFile() %>% 
-       summarize_at(vars(input$Lat,input$Lon), .funs = funs(min,max)) %>% 
-      gather() %>% 
-      as.data.frame()
-    
-    NumRow <- bbox[3,2] - bbox[1,2] / 0.01
-    NumCol <- bbox[4,2] - bbox[4,2] / 0.01
-    
+
     #mosRas <- raster(nrows = NumRow, ncols = NumCol)
     
     mospoints <- dataFile() %>% 
@@ -192,7 +186,7 @@ server <- function(input, output, session) {
     
     #give same spatial attributes as sp object
     extent(mosRas) <- extent(mos_sp)
-    res(mosRas) <- 0.001
+    res(mosRas) <- input$Res
     
     str(mosRas)
     #seems to be breaking here
@@ -202,7 +196,7 @@ server <- function(input, output, session) {
     summary(denRas)
     
     #add leaflet map
-    pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#FFFFCC"), values(denRas),
+    pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#bd0202"), values(denRas),
                         na.color = "grey")
     
     leaflet() %>% 
