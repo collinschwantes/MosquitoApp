@@ -9,6 +9,7 @@ library(shinythemes)
 library(sf)
 library(leaflet)
 library(raster)
+library(rgdal)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
@@ -127,6 +128,7 @@ server <- function(input, output, session) {
      if (is.null(dataFile())) 
        return(NULL) 
      
+     ## update these to validate and need
      if (input$Count == "NoData") {
       stop("Select Count Column")
      }
@@ -149,6 +151,8 @@ server <- function(input, output, session) {
    output$DensityMap <- renderLeaflet({ 
      if (is.null(dataFile())) 
        return(NULL) 
+     
+     ## update these to validate and need
      
      if (input$Lat == "NoData") {
        stop("Select Latitude Column")
