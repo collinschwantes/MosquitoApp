@@ -41,9 +41,6 @@ ui <- fluidPage(
                   c("No data uploaded data" = "NoData")
       ),
       tableOutput("data")
-      ),
-      fluidRow(
-        #textOutput("dataSummary")
       )
     ),
     mainPanel(
@@ -55,7 +52,7 @@ ui <- fluidPage(
                  tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
                  leafletOutput("DensityMap"),
                  sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
-        tabPanel("Model Outputs")
+        tabPanel("Resouce Optimization Model")
       )
     )
   )
@@ -64,6 +61,10 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   dataFile <- reactive({
+    validate(
+        need(expr = input$file1 != "", message = "Upload a datafile")
+    )    
+    
     infile <- input$file1
     
     if (is.null(infile)) 
@@ -85,57 +86,63 @@ server <- function(input, output, session) {
     
     ColNames <- names(x)
     
+    #print(paste("selected:",tail(x,1)))
+    
     updateSelectInput(session, "Date",
                       label = "Date Column",
                       choices = ColNames,
-                      selected = tail(x,1)
+                      selected = ""
     )
     
     updateSelectInput(session, "Count",
                       label = "Count Column",
                       choices = ColNames,
-                      selected = tail(x,1)
+                      selected = ""
     )
     
     updateSelectInput(session, "Lat",
                       label = "Latitude Column",
                       choices = ColNames,
-                      selected = tail(x,1)
+                      selected = ""
     )
     
     updateSelectInput(session, "Lon",
                       label = "Longitude Column",
                       choices = ColNames,
-                      selected = tail(x,1)
+                      selected = ""
     )
     
   })
   
   
    output$contents <- renderDataTable({ 
-    # input$file1 will be NULL initially. After the user selects
-    # and uploads a file, it will be a data frame with 'name',
-    # 'size', 'type', and 'datapath' columns. The 'datapath'
-    # column will contain the local filenames where the data can
-    # be found.
-    
+    # input$file1 will be NULL initially. 
+     validate(
+       need(expr = input$file1 != "", message = "")
+     ) 
      
      dataFile()
   })
    
    output$MosPopPlot <- renderPlot(bg = "transparent",{
-     
-     if (is.null(dataFile())) 
-       return(NULL) 
-     
+
+      if (is.null(dataFile()))
+        return(NULL)
+     #
      ## update these to validate and need
-     if (input$Count == "NoData") {
-      stop("Select Count Column")
-     }
      
-     if (input$Date == "NoData") {
-       stop("Select Date Column")
-     }
+     validate(
+       need(input$Count != 'NoData',"Select Count Column" ),
+       need(input$Date != 'NoData', "Select Date Column")
+     )
+     
+     # if (input$Count == "NoData") {
+     #  stop("Select Count Column")
+     # }
+     # 
+     # if (input$Date == "NoData") {
+     #   stop("Select Date Column")
+     # }
      
      print(str(dataFile()))
      
@@ -154,19 +161,13 @@ server <- function(input, output, session) {
      
      ## update these to validate and need
      
-     if (input$Lat == "NoData") {
-       stop("Select Latitude Column")
-     }
+     validate(
+       need(input$Lat != 'NoData',"Select Latitude Column" ),
+       need(input$Lon != 'NoData', "Select Longitude Column"),
+       need(input$Count != 'NoData', "Select Count Column")
+     )
      
-     if (input$Lon == "NoData") {
-       stop("Select Longitude Column")
-     }
-     
-     
-     if (input$Count == "NoData") {
-       stop("Select Count Column")
-     }
-     
+
      #create density grid
      
 
@@ -208,21 +209,7 @@ server <- function(input, output, session) {
       addRasterImage(denRas, colors = pal, opacity = 0.8,project = T) %>%
       addLegend(pal = pal, values = values(denRas),
                 title = "Mean Count") 
-    
-    
-   })
-   
-   output$dataSummary <- renderPrint({
-     
-     if (is.null(dataFile())) 
-       return(NULL)
-     
-     str(dataFile())
-     
-     ## add GBIF backbone
-     ## show historical trends?
-       
-     
+  
    })
    
   # output$ModelResults 
