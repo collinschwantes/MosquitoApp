@@ -27,11 +27,11 @@ When is the best time to spray given local mosquito populations?
 ## variables:
 
 x(t) = vector population at time t  
-Λ(t) = time varying emergence rate (genus or species specific, likely temp dependent as well)  
-1/µ = natural vector lifetime (species and temp dependent)
-τ = year/season/period
-N = noisy mosquito pop estimates/impulses
-λ = emergence rate
+Λ(t) = time varying emergence rate (genus or species specific, likely temp dependent as well)    
+1/µ = natural vector lifetime (species and temp dependent)  
+τ = year/season/period  
+N = noisy mosquito pop estimates/impulses  
+λ = emergence rate  
 
 populations based soley on females?
 
