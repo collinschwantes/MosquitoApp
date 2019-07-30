@@ -52,7 +52,9 @@ ui <- fluidPage(
                  tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
                  leafletOutput("DensityMap"),
                  sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
-        tabPanel("Resouce Optimization Model")
+        tabPanel("Resouce Optimization Model",
+                  tags$p("This panel intentionally blank")
+                )
       )
     )
   )
@@ -174,17 +176,14 @@ server <- function(input, output, session) {
     #mosRas <- raster(nrows = NumRow, ncols = NumCol)
     
     mospoints <- dataFile() %>% 
-      st_as_sf(coords = c(input$Lat,input$Lon),crs = 3857)
+      st_as_sf(coords = c(input$Lon,input$Lat),crs = 3857)
     
-    #str(mospoints)
    
     #will want to filter mospoints 
     
     mos_sp <- as(mospoints, "Spatial")
     
-    str(mos_sp)
-    
-   # str(mos_sp)
+
     
     #create raster
     mosRas <- raster()
