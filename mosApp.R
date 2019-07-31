@@ -13,8 +13,16 @@ library(rgdal)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
-  fluidRow(tags$h1("Mosquito Control Resource Optimization"),
-           tags$h2()),
+  titlePanel(title = "Mosquito Control Resource Optimization"
+           ),
+  fluidRow(
+    column(12,
+    tags$h4(
+      tags$a(href = "https://github.com/collinschwantes/MosquitoApp",
+             "Find the Githup project here")
+      )
+     )
+    ),
   sidebarLayout(
     sidebarPanel(
       fluidRow(
