@@ -13,6 +13,8 @@ library(rgdal)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
+  fluidRow(tags$h1("Mosquito Control Resource Optimization"),
+           tags$h2()),
   sidebarLayout(
     sidebarPanel(
       fluidRow(
@@ -53,7 +55,7 @@ ui <- fluidPage(
                  leafletOutput("DensityMap"),
                  sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Resouce Optimization Model",
-                  tags$p("This panel intentionally blank")
+                  tags$p("This panel is intentionally blank")
                 )
       )
     )
