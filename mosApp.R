@@ -10,29 +10,52 @@ library(sf)
 library(leaflet)
 library(raster)
 library(rgdal)
+library(readxl)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
   titlePanel(title = "Mosquito Control Resource Optimization"
            ),
   fluidRow(
-    column(12,
+    column(4,
     tags$h4(
       tags$a(href = "https://github.com/collinschwantes/MosquitoApp",
              "Find the Githup project here")
       )
-     )
+     ),
+    column(5),
+    column(3,
+           tags$h4(
+             tags$a(href = "https://github.com/collinschwantes/MosquitoApp/issues",
+                    "Report Issues Here",icon("bug", "fa-1x"))
+           )
+    )
     ),
   sidebarLayout(
     sidebarPanel(
       fluidRow(
-      fileInput("file1", "Choose CSV File",
+      fileInput("file1", "Choose CSV or excel File",
                 accept = c(
                   "text/csv",
                   "text/comma-separated-values,text/plain",
-                  ".csv")
+                  ".csv",
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  ".xlsx",
+                  "application/vnd.ms-excel",
+                  ".xls"
+                )
       ),
-      checkboxInput("header", "Header", TRUE),
+      radioButtons("filetype", "Choose File Type:", inline = T, 
+                         choiceNames = 
+                           list(".csv",".xls", ".xlsx"),
+                         choiceValues = 
+                           list("csv","xls","xlsx")
+                           ),
+      conditionalPanel(
+        condition = "input.filetype != 'csv'",
+        selectInput("sheet", "Select Sheet",
+                    list("Upload excel file"))
+      ),
       tags$hr(),
       selectInput("TrapType", "Trap Type:",
                   c("Oviposition" = "ovi",
@@ -82,48 +105,111 @@ server <- function(input, output, session) {
     if (is.null(infile)) 
       return(NULL)
     
-    read_csv(infile$datapath)
+    #print(infile$datapath)
+    
+    # read_csv(infile$datapath)
+    
+    infile
+    
   })
   
-  ## update selection inputs
-  observe({
+  ## update selection inputs for sheets
+  Sheet <- observe({
     
     x <- dataFile()
     
-    # Can use character(0) to remove all choices
-    if (is.null(x))
-      x <- character(0)
+    if (x$type == "application/vnd.ms-excel" ) {
+      
+      SheetNames <- excel_sheets(x$datapath)
+      
+      updateSelectInput(session, "sheet",
+                        label = "Select Sheet",
+                        choices = SheetNames,
+                        selected = ""
+      )
+      
+      return(SheetNames)
+      
+    }
     
-    # Can also set the label and select items
+    # csv
+    if (x$type == "text/csv" ) {
+      
+      SheetNames <- "No Sheets Needed"
+      
+      return(SheetNames)
+      
+    }
+    # xslx
     
-    ColNames <- names(x)
+    if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ) {
+      
+      SheetNames <- excel_sheets(x$datapath)
+      
+      updateSelectInput(session, "sheet",
+                        label = "Select Sheet",
+                        choices = SheetNames,
+                        selected = ""
+      )
+      
+      return(SheetNames)
+    }
     
+  })
+  
+  MosData <- reactive({ 
+    
+    x <- dataFile()
+    
+    #xlsx
+    if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+    df <- read_xlsx(path = x$datapath,sheet = input$Sheet )
+    }
+    
+    #xls  
+    if (x$type == "application/vnd.ms-excel") {
+      df <- read_xls(path = x$datapath,sheet = input$Sheet)
+    }
+    
+    if (x$type == "text/csv") {
+     df <- read_csv(path = x$datapath)
+    }
+    
+    print(df)
+  })
+  
+  observe({
+    
+    df <- MosData()
+    
+    ColNames <- names(df)
+
     #print(paste("selected:",tail(x,1)))
-    
+
     updateSelectInput(session, "Date",
                       label = "Date Column",
                       choices = ColNames,
                       selected = ""
     )
-    
+
     updateSelectInput(session, "Count",
                       label = "Count Column",
                       choices = ColNames,
                       selected = ""
     )
-    
+
     updateSelectInput(session, "Lat",
                       label = "Latitude Column",
                       choices = ColNames,
                       selected = ""
     )
-    
+
     updateSelectInput(session, "Lon",
                       label = "Longitude Column",
                       choices = ColNames,
                       selected = ""
     )
-    
+   
   })
   
   
@@ -133,7 +219,7 @@ server <- function(input, output, session) {
        need(expr = input$file1 != "", message = "")
      ) 
      
-     dataFile()
+     MosData()
   })
    
    output$MosPopPlot <- renderPlot(bg = "transparent",{
@@ -156,9 +242,9 @@ server <- function(input, output, session) {
      #   stop("Select Date Column")
      # }
      
-     print(str(dataFile()))
+     print(str(MosData()))
      
-     dataFile() %>% 
+     MosData() %>% 
        ggplot(aes_string(x = input$Date, y = input$Count)) +
        geom_point(color = "white", alpha = .3) +
        scale_x_date(date_breaks = "2 weeks") +
