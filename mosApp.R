@@ -113,14 +113,18 @@ server <- function(input, output, session) {
   observe({
     
     x <- dataFile()
-    
+    # 
+    # print("From Observe")
+    # print(x$type)
+        
     if (x$type != "text/csv") {
       
       SheetNames <- excel_sheets(x$datapath)
       
+      print(SheetNames)
       ## insert UI 
       
-      insertUI(selector = "#file1", where = "afterBegin", 
+      insertUI(selector = "#file1_progress", where = "afterEnd",  
                ui = selectInput("sheet", "Select Sheet", SheetNames,selected = "")
               )
     }
@@ -130,18 +134,17 @@ server <- function(input, output, session) {
   #create event reactive for excel
   
   MosXL <- reactive({
-    req(input$Sheet)
     
     x <- dataFile()
     
     if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-      df <- read_xlsx(path = x$datapath,sheet = input$Sheet )
+      df <- read_xlsx(path = x$datapath,sheet = input$sheet )
     }
     
     #xls  
     if (x$type == "application/vnd.ms-excel") {
       
-      df <- read_xls(path = x$datapath,sheet = input$Sheet)
+      df <- read_xls(path = x$datapath,sheet = input$sheet)
     }
     
     return(df)
@@ -152,6 +155,8 @@ server <- function(input, output, session) {
   
   
   MosData <- reactive({ 
+    
+    req(dataFile())
     
     x <- dataFile()
     
@@ -215,10 +220,8 @@ server <- function(input, output, session) {
   })
    
    output$MosPopPlot <- renderPlot(bg = "transparent",{
-
-      if (is.null(dataFile()))
-        return(NULL)
-     #
+    
+  req(dataFile())
      ## update these to validate and need
      
      validate(
