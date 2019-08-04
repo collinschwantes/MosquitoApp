@@ -11,6 +11,11 @@ library(leaflet)
 library(raster)
 library(rgdal)
 library(readxl)
+library(reactlog)
+
+
+
+options(shiny.reactlog = TRUE)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
@@ -45,18 +50,18 @@ ui <- fluidPage(
                   ".xls"
                 )
       ),
-      radioButtons("filetype", "Choose File Type:", inline = T, 
-                         choiceNames = 
-                           list(".csv",".xls", ".xlsx"),
-                         choiceValues = 
-                           list("csv","xls","xlsx")
-                           ),
-      conditionalPanel(
-        condition = "input.filetype != 'csv'",
-        selectInput("sheet", "Select Sheet",
-                    list("Upload excel file"))
-      ),
-      tags$hr(),
+      # radioButtons("filetype", "Choose File Type:", inline = T, 
+      #                    choiceNames = 
+      #                      list(".csv",".xls", ".xlsx"),
+      #                    choiceValues = 
+      #                      list("csv","xls","xlsx")
+      #                      ),
+      # conditionalPanel(
+      #   condition = "input.filetype != 'csv'",
+      #   selectInput("sheet", "Select Sheet",
+      #               list("Upload excel file"))
+      # ),
+       tags$hr(),
       selectInput("TrapType", "Trap Type:",
                   c("Oviposition" = "ovi",
                     "Light" = "lig",
@@ -100,82 +105,69 @@ server <- function(input, output, session) {
         need(expr = input$file1 != "", message = "Upload a datafile")
     )    
     
-    infile <- input$file1
-    
-    if (is.null(infile)) 
-      return(NULL)
-    
-    #print(infile$datapath)
-    
-    # read_csv(infile$datapath)
-    
-    infile
+   input$file1
     
   })
   
   ## update selection inputs for sheets
-  Sheet <- observe({
+  observe({
     
     x <- dataFile()
     
-    if (x$type == "application/vnd.ms-excel" ) {
+    if (x$type != "text/csv") {
       
       SheetNames <- excel_sheets(x$datapath)
       
-      updateSelectInput(session, "sheet",
-                        label = "Select Sheet",
-                        choices = SheetNames,
-                        selected = ""
-      )
+      ## insert UI 
       
-      return(SheetNames)
-      
-    }
-    
-    # csv
-    if (x$type == "text/csv" ) {
-      
-      SheetNames <- "No Sheets Needed"
-      
-      return(SheetNames)
-      
-    }
-    # xslx
-    
-    if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ) {
-      
-      SheetNames <- excel_sheets(x$datapath)
-      
-      updateSelectInput(session, "sheet",
-                        label = "Select Sheet",
-                        choices = SheetNames,
-                        selected = ""
-      )
-      
-      return(SheetNames)
+      insertUI(selector = "#file1", where = "afterBegin", 
+               ui = selectInput("sheet", "Select Sheet", SheetNames,selected = "")
+              )
     }
     
   })
+  
+  #create event reactive for excel
+  
+  MosXL <- reactive({
+    req(input$Sheet)
+    
+    x <- dataFile()
+    
+    if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+      df <- read_xlsx(path = x$datapath,sheet = input$Sheet )
+    }
+    
+    #xls  
+    if (x$type == "application/vnd.ms-excel") {
+      
+      df <- read_xls(path = x$datapath,sheet = input$Sheet)
+    }
+    
+    return(df)
+    
+  })
+  
+  #create reactive for CSV
+  
   
   MosData <- reactive({ 
     
     x <- dataFile()
     
-    #xlsx
-    if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-    df <- read_xlsx(path = x$datapath,sheet = input$Sheet )
-    }
+    print("In Mos Data")
+    print(x)
     
-    #xls  
-    if (x$type == "application/vnd.ms-excel") {
-      df <- read_xls(path = x$datapath,sheet = input$Sheet)
-    }
+    #xlsx
     
     if (x$type == "text/csv") {
-     df <- read_csv(path = x$datapath)
+     df <- read_csv(file = x$datapath)
+    } else {
+      df <- MosXL()
     }
     
-    print(df)
+    return(df)
+    
   })
   
   observe({
@@ -271,7 +263,7 @@ server <- function(input, output, session) {
 
     #mosRas <- raster(nrows = NumRow, ncols = NumCol)
     
-    mospoints <- dataFile() %>% 
+    mospoints <- MosData() %>% 
       st_as_sf(coords = c(input$Lon,input$Lat),crs = 3857)
     
    
@@ -312,3 +304,5 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
+
