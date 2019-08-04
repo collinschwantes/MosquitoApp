@@ -12,7 +12,7 @@ library(raster)
 library(rgdal)
 library(readxl)
 library(reactlog)
-
+library(lubridate)
 
 
 options(shiny.reactlog = TRUE)
@@ -121,12 +121,13 @@ server <- function(input, output, session) {
       
       SheetNames <- excel_sheets(x$datapath)
       
-      print(SheetNames)
+      #print(SheetNames)
       ## insert UI 
-      
+      if (length(SheetNames) > 1) {
       insertUI(selector = "#file1_progress", where = "afterEnd",  
                ui = selectInput("sheet", "Select Sheet", SheetNames,selected = "")
               )
+      }
     }
     
   })
@@ -138,13 +139,13 @@ server <- function(input, output, session) {
     x <- dataFile()
     
     if (x$type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-      df <- read_xlsx(path = x$datapath,sheet = input$sheet )
+      df <- read_xlsx(path = x$datapath,sheet = input$sheet, .name_repair = "universal" )
     }
     
     #xls  
     if (x$type == "application/vnd.ms-excel") {
       
-      df <- read_xls(path = x$datapath,sheet = input$sheet)
+      df <- read_xls(path = x$datapath,sheet = input$sheet, .name_repair = "universal")
     }
     
     return(df)
@@ -239,7 +240,14 @@ server <- function(input, output, session) {
      
      print(str(MosData()))
      
+     print(input$Date)
+    
+    # dateInput  <- rlang::sym(input$Date)
+     
+    #maybe try to make a small df with appropriate outputs
+     
      MosData() %>% 
+       # transmute(!!dateInput, as.Date) %>% 
        ggplot(aes_string(x = input$Date, y = input$Count)) +
        geom_point(color = "white", alpha = .3) +
        scale_x_date(date_breaks = "2 weeks") +
