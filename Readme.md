@@ -14,7 +14,11 @@ This project aims to make a statistical model for mosquito control accessible to
     
 **Please** use the [Issues tab](https://github.com/collinschwantes/MosquitoApp/issues) to propose enhancements, propose new features, report bugs, or make other project related suggestions. 
 
-  
+## Instructions for using the application
+
+Upload mosquito count data in CSV or excel files. 
+
+---
 
 This is a summary of the model draft provided by Jeff Demers. 
 

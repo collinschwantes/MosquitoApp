@@ -25,7 +25,7 @@ ui <- fluidPage(
     column(4,
     tags$h4(
       tags$a(href = "https://github.com/collinschwantes/MosquitoApp",
-             "Find the Githup project here")
+             "Instructions and Github Repo")
       )
      ),
     column(5),
@@ -102,7 +102,7 @@ server <- function(input, output, session) {
   
   dataFile <- reactive({
     validate(
-        need(expr = input$file1 != "", message = "Upload a datafile")
+        need(expr = input$file1 != "", message = "Upload a CSV, XLS, or XLSX datafile that contains Date and Count information for mosquito traps")
     )    
     
    input$file1
@@ -123,7 +123,7 @@ server <- function(input, output, session) {
       
       #print(SheetNames)
       ## insert UI 
-      if (length(SheetNames) > 1) {
+      if (length(SheetNames) > 0) {
       insertUI(selector = "#file1_progress", where = "afterEnd",  
                ui = selectInput("sheet", "Select Sheet", SheetNames,selected = "")
               )
@@ -161,8 +161,8 @@ server <- function(input, output, session) {
     
     x <- dataFile()
     
-    print("In Mos Data")
-    print(x)
+    #print("In Mos Data")
+    #print(x)
     
     #xlsx
     
@@ -171,6 +171,8 @@ server <- function(input, output, session) {
     } else {
       df <- MosXL()
     }
+    
+    #str(df)
     
     return(df)
     
@@ -210,8 +212,37 @@ server <- function(input, output, session) {
    
   })
   
+  ## standardize data
   
-   output$contents <- renderDataTable({ 
+  cleanData <- reactive({
+    
+    validate(
+      need(input$Count != 'NoData',"Select Count Column" ),
+      need(input$Date != 'NoData', "Select Date Column")
+    )
+    
+    df <- MosData()
+    
+    print("Mos Data frame Structure")
+    str(df)
+    
+    dfNames <- names(df)
+    
+    CountCol <- match(table = dfNames, x = input$Count)
+    DateCol <- match(table = dfNames, x = input$Date)
+    
+    dfDateCount <- df %>% 
+      mutate(Count = as.numeric(.[[CountCol]])) %>% 
+      mutate(Date = as.Date(.[[DateCol]]))
+    
+    print("Clean Data frame Structure")
+    str(dfDateCount)
+    
+    return(dfDateCount)
+    
+  })
+  
+   output$contents <- renderDataTable(options = list(scrollX = TRUE), { 
     # input$file1 will be NULL initially. 
      validate(
        need(expr = input$file1 != "", message = "")
@@ -223,35 +254,12 @@ server <- function(input, output, session) {
    output$MosPopPlot <- renderPlot(bg = "transparent",{
     
       req(dataFile())
-     
-     ## update these to validate and need
-     
-     validate(
-       need(input$Count != 'NoData',"Select Count Column" ),
-       need(input$Date != 'NoData', "Select Date Column")
-     )
-     
-     # if (input$Count == "NoData") {
-     #  stop("Select Count Column")
-     # }
-     # 
-     # if (input$Date == "NoData") {
-     #   stop("Select Date Column")
-     # }
-     
-     print(str(MosData()))
-     
-     #print(input$Date)
-    
-    # dateInput  <- rlang::sym(input$Date)
-     
-    #maybe try to make a small df with appropriate outputs
-     #convert postixc to date
-     
-     MosData() %>% 
-       ggplot(aes_string(x = input$Date, y = input$Count)) +
+
+     cleanData() %>% 
+       ggplot(aes(x = Date, y = Count)) +
        geom_point(color = "white", alpha = .3) +
-       scale_x_date(date_breaks = "2 weeks") +
+       geom_smooth() +
+       scale_x_date(date_breaks = "1 months") +
          theme_minimal() +
          theme(panel.grid  =  element_line(colour = "dark grey"))
        
@@ -275,7 +283,7 @@ server <- function(input, output, session) {
 
     #mosRas <- raster(nrows = NumRow, ncols = NumCol)
     
-    mospoints <- MosData() %>% 
+    mospoints <- cleanData() %>% 
       st_as_sf(coords = c(input$Lon,input$Lat),crs = 3857)
     
    
