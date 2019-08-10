@@ -222,7 +222,8 @@ server <- function(input, output, session) {
    
    output$MosPopPlot <- renderPlot(bg = "transparent",{
     
-  req(dataFile())
+      req(dataFile())
+     
      ## update these to validate and need
      
      validate(
@@ -240,14 +241,14 @@ server <- function(input, output, session) {
      
      print(str(MosData()))
      
-     print(input$Date)
+     #print(input$Date)
     
     # dateInput  <- rlang::sym(input$Date)
      
     #maybe try to make a small df with appropriate outputs
+     #convert postixc to date
      
      MosData() %>% 
-       # transmute(!!dateInput, as.Date) %>% 
        ggplot(aes_string(x = input$Date, y = input$Count)) +
        geom_point(color = "white", alpha = .3) +
        scale_x_date(date_breaks = "2 weeks") +
