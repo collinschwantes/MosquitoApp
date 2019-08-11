@@ -36,8 +36,8 @@ for (i in 2:length(t)) {
   
 counts <-  map_dbl(.x = pops,.f = rbind)
 
-lon <- 38.922807 + runif(1,min = -0.05, max  = 0.05)
-lat <- -77.068259 + runif(1,min = -0.05, max  = 0.05)
+lat <- 38.922807 + runif(1,min = -0.05, max  = 0.05)
+lon <- -77.068259 + runif(1,min = -0.05, max  = 0.05)
 
 SynData <- data.frame(
   dateCollected = Sys.Date() + 1:50,
@@ -78,4 +78,7 @@ SynFull %>%
 dir.create("./SyntheticData")
 
 SynFull %>% write.csv(file = "./SyntheticData/Culex.csv")
+
+
+head(SynFull,10) %>% write.csv(file = "./SyntheticData/ExampleCulex.csv")
 

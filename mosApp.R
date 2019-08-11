@@ -265,7 +265,9 @@ server <- function(input, output, session) {
        
     })
    
-   output$DensityMap <- renderLeaflet({ 
+   
+  ## MAP ##
+  output$DensityMap <- renderLeaflet({ 
      if (is.null(dataFile())) 
        return(NULL) 
      
