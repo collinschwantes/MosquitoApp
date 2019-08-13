@@ -24,15 +24,17 @@ ui <- fluidPage(
   fluidRow(
     column(4,
     tags$h4(
-      tags$a(href = "https://github.com/collinschwantes/MosquitoApp",
+      tags$a(href = "https://github.com/collinschwantes/MosquitoApp", 
+             target="_blank",
              "Instructions and Github Repo")
       )
      ),
     column(5),
     column(3,
            tags$h4(
-             tags$a(href = "https://github.com/collinschwantes/MosquitoApp/issues",
-                    "Report Issues Here",icon("bug", "fa-1x"))
+             tags$a(href = "https://github.com/collinschwantes/MosquitoApp/issues", 
+                    target = "_blank",
+                    "Provide Feedback",icon("bug", "fa-1x"))
            )
     )
     ),
@@ -82,17 +84,35 @@ ui <- fluidPage(
       )
     ),
     mainPanel(
-      tabsetPanel(
-        tabPanel("Data Summary",
+      tabsetPanel(id = "TabIn",
+        tabPanel("Getting Started", tags$h3("Overview"), 
+                 tags$p("This project aims to make an accessible statistical model for mosquito control resource optimization. The model uses data provided by users in conjunction with temperature, mosquito natural history, and other factors to estimate potential optimal control methods (spraying, fogging, nesting habitat removal, application of larvicide, etc.)."),
+                 tags$h3("Instructions"),tags$hr(),
+                 tags$p("This application accepts CSV and excel files (.xls, .xlsx) as inputs. None of your data are stored long term on the Rshiny servers. At the moment, only a single spreadsheet can be uploaded. If you have multiple years of data, please consolidate to one spread sheet."),
+                 tags$li("Consistent date formats are required"),
+                 tags$li(tags$a(href = "https://github.com/collinschwantes/MosquitoApp/blob/master/SyntheticData/ExampleCulex.csv", target = "_blank",
+                                "Example Data Sheet")),
+                 tags$li(tags$a(href = "https://github.com/collinschwantes/MosquitoApp/issues",target = "_blank", "Provide Feedback",icon("bug", "fa-1x"))),
+                 tags$li("Minimum data requirements for model:"),
+                 tags$ul(tags$li("Count data"),
+                         tags$li("Date Collected"),
+                         tags$li("Trap type"),
+                         tags$li("Species"),
+                         tags$li("Resource constraints"))
+                 
+                                ),
+        tabPanel("Data Summary", value = "datasum",
                  plotOutput("MosPopPlot"),
-                 dataTableOutput("contents")),
+                 dataTableOutput("contents")
+        )
+        ,
         tabPanel("Summary Map",
                  tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
                  leafletOutput("DensityMap"),
                  sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Resouce Optimization Model",
-                  tags$p("This panel is intentionally blank")
-                )
+                 tags$p("This panel is intentionally blank")
+        )
       )
     )
   )
@@ -109,8 +129,14 @@ server <- function(input, output, session) {
     
   })
   
+  ## update main tab panel to include summary plot and table
+  
+  observeEvent(input$file1, {
+    updateTabsetPanel(session,inputId = "TabIn",selected = "datasum")
+  })
+  
   ## update selection inputs for sheets
-  observe({
+  observeEvent(input$file1, {
     
     x <- dataFile()
     # 
@@ -221,24 +247,90 @@ server <- function(input, output, session) {
       need(input$Date != 'NoData', "Select Date Column")
     )
     
-    df <- MosData()
-    
-    print("Mos Data frame Structure")
-    str(df)
+    df <- MosData() 
     
     dfNames <- names(df)
     
     CountCol <- match(table = dfNames, x = input$Count)
     DateCol <- match(table = dfNames, x = input$Date)
     
-    dfDateCount <- df %>% 
-      mutate(Count = as.numeric(.[[CountCol]])) %>% 
-      mutate(Date = as.Date(.[[DateCol]]))
+    df <- df %>% 
+      filter(!is.na(.[[DateCol]]))
     
-    print("Clean Data frame Structure")
-    str(dfDateCount)
+    print("Mos Data frame Structure after filter")
+    str(df)
     
-    return(dfDateCount)
+    ClassDate <- class(df[[DateCol]])
+    print(ClassDate)
+    
+    if (length(ClassDate) > 1 ) {
+      
+      DateChar <- as_date(df[[DateCol]])
+      
+      print(class(DateChar))
+      print(head(DateChar))
+      print(summary(DateChar))
+      # DateParse <- parse_date_time(x = DateChar,orders = c("ymd","mdy","dmy"),truncated = 3)
+      # print(head(DateParse))
+       df[[DateCol]] <- DateChar
+      # str(df)
+      
+      ClassDate <- class(df[[DateCol]])
+      
+      print(ClassDate)
+    }
+    
+    if (ClassDate == "character") {
+      
+      print(head(df[[DateCol]]))
+      
+      df[[DateCol]] <- parse_date_time(df[[DateCol]],orders = c("mdy","dmy","ymd") )
+      print(df[[DateCol]])
+        
+    }
+    
+    if (is.numeric(df[[DateCol]])) {
+      print("Is Numeric")
+      
+      df$Count <- as.numeric(df[[CountCol]])
+      df$Date = as.Date(df[[DateCol]],origin = "1899-12-30")
+      
+      # 
+      # dfDateCount <- df %>% 
+      #   mutate(Count = as.numeric(.[[CountCol]])) %>% 
+      #   mutate(Date = as.Date(.[[DateCol]], origin = "1899-12-30"))
+      # 
+      # print("Clean Data frame Structure")
+      # str(dfDateCount)
+
+      
+    # } else if (ClassDate == "Date") {
+    #   print("Its a date")
+    #   
+    #   dfDateCount <- df %>% 
+    #     mutate(Count = as.numeric(.[[CountCol]])) %>% 
+    #     mutate(Date = .[[DateCol]])
+      
+    } else {
+      print("Is Not Numeric")
+      
+      
+      df$Count <- as.numeric(df[[CountCol]])
+      df$Date <- as.Date(df[[DateCol]])
+      
+      # dfDateCount <- df %>% 
+      #   mutate(Count = as.numeric(.[[CountCol]])) %>% 
+      #   mutate(Date = as_date(.[[DateCol]]))
+      # 
+      # print("Clean Data frame Structure")
+      # print(str(dfDateCount$Date))
+      # print(str(dfDateCount[[DateCol]]))
+
+      
+    }
+    
+   
+    return(df)
     
   })
   
@@ -250,18 +342,18 @@ server <- function(input, output, session) {
      
      MosData()
   })
-   
+  
    output$MosPopPlot <- renderPlot(bg = "transparent",{
-    
-      req(dataFile())
-
+     
+     
      cleanData() %>% 
        ggplot(aes(x = Date, y = Count)) +
        geom_point(color = "white", alpha = .3) +
        geom_smooth() +
        scale_x_date(date_breaks = "1 months") +
          theme_minimal() +
-         theme(panel.grid  =  element_line(colour = "dark grey"))
+         theme(panel.grid  =  element_line(colour = "dark grey")) +
+       theme(axis.text.x = element_text(angle = 45, hjust = 1))
        
     })
    
