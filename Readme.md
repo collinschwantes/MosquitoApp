@@ -18,7 +18,16 @@ Link to application: https://collin-schwantes.shinyapps.io/MosquitoApp/
 
 ## Instructions for using the application
 
-Upload mosquito count data in CSV or excel files. 
+This application accepts CSV and excel files (.xls, .xlsx) as inputs. None of your data are stored long term on the Rshiny servers. At the moment, only a single spreadsheet can be uploaded. If you have multiple years of data, please consolidate to one spread sheet.
+
+- Consistent date formats are required
+- [Example Data Sheet](https://github.com/collinschwantes/MosquitoApp/blob/master/SyntheticData/ExampleCulex.csv)
+- Minimum data requirements for model:
+  - Count data
+  - Date Collected
+  - Trap type
+  - Species
+  - Resource constraints
 
 ---
 
