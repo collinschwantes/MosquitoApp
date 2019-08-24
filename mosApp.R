@@ -74,6 +74,9 @@ ui <- fluidPage(
       selectInput("Date", "Date:",
                   c("No data uploaded data" = "NoData")
                   ),
+      selectInput("Species", "Species:",
+                  c("No data uploaded data" = "NoData")
+      ),
       selectInput("Lat", "Latitude:",
                   c("No data uploaded data" = "NoData")
       ),
@@ -111,7 +114,24 @@ ui <- fluidPage(
                  leafletOutput("DensityMap"),
                  sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Resouce Optimization Model",
-                 tags$p("This panel is intentionally blank")
+                 tags$h2("Model Parameters"),
+                 fluidRow(
+                 column(width = 6,
+                   numericInput(inputId = "Knockdown",label = "Knockdown rate",min = 0,max = 100, value = 70,step = 10)
+                   ),
+                 column(width = 6,
+                 numericInput(inputId = "NumTreat",label = "Number of Applications",min = 0, value = 3,step = 1)
+                 )
+                 )
+                 # radioButtons(inputId = "Pathogen",inline = T, label = "Pathogen Control",c("West Nile Virus" = "WNV",
+                 #                                                            "Dengue" = "Dengue virus",
+                 #                                                            "Nebulization" = "Nebulization",
+                 #                                                            "Environmental Sanitation" = "EnvSan",
+                 #                                                            "Gravid Traps" = "GravTrap",
+                 #                                                            "Biological Control" = "BioCon"
+                 #                                                            )
+                 # )
+                 
         )
       )
     )
@@ -223,6 +243,12 @@ server <- function(input, output, session) {
                       choices = ColNames,
                       selected = ""
     )
+    
+    updateSelectInput(session, "Species",
+                      label = "Species Column",
+                      choices = ColNames,
+                      selected = ""
+    )
 
     updateSelectInput(session, "Lat",
                       label = "Latitude Column",
@@ -253,6 +279,7 @@ server <- function(input, output, session) {
     
     CountCol <- match(table = dfNames, x = input$Count)
     DateCol <- match(table = dfNames, x = input$Date)
+    SpeciesCol <- match(table = dfNames, x = input$Species)
     
     df <- df %>% 
       filter(!is.na(.[[DateCol]]))
@@ -329,7 +356,10 @@ server <- function(input, output, session) {
       
     }
     
-   
+    
+    df$SpeciesCol <- df[[SpeciesCol]]
+    
+    
     return(df)
     
   })
