@@ -1,6 +1,6 @@
 ### Mosquito Control Aid 
 
-This project aims to make a statistical model for mosquito control accessible to individuals interested in mosquito control. The model uses data provided by users in conjunction with temperature, mosquito natural history, and other factors to estimate potential optimal control methods (spraying, fogging, nesting habitat removal, application of larvicide, etc.).
+This project aims to make an accessible model for mosquito control resource optimization. The model uses data provided by users to estimate the mosquito populations in the sampling area for the sampling timeperiod, and the optimal time to apply a treatment or multiple treatments.
 
 Link to application: https://collin-schwantes.shinyapps.io/MosquitoApp/
 
@@ -25,9 +25,11 @@ This application accepts CSV and excel files (.xls, .xlsx) as inputs. None of yo
 - Minimum data requirements for model:
   - Count data
   - Date Collected
-  - Trap type
-  - Species
-  - Resource constraints
+ User will provide the following inputs in the application:
+  - estimated mosquito lifespan 
+  - Percent of the mosquito population knocked down for a treatment
+  - Number of treatments to be applied in a season
+  - number of days between treatments
 
 ---
 
