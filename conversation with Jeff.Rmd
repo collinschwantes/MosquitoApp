@@ -1,0 +1,71 @@
+---
+title: "Conversation with Jeff"
+author: "Collin Schwantes"
+date: "8/28/2019"
+output: html_document
+---
+
+
+Model discussion with Jeff and Anshuman
+
+Talk about data input format
+  - stitching multiyear datasets
+  - 
+  
+Web application 
+
+surprised to see to see stuff involving spatial 
+
+additional - 
+  - missing time points are not an issue for curve and modeling fitting 
+
+Anshuman
+  - do not need continuous time points
+  - na.rm 
+  - date format
+    - absolute easiest thing day 
+    - convert to day of the year
+- Specify parameters
+  4 or 5
+    - mosquito lifetime - bounded 1 day and 30 day
+    - number of impulses - springs they want to test - bound to 10 
+      - more pulses more calc time
+    - % knock dowm 0 - 50%
+    - Kmax - 10 - cutoff a certain summation - get crappy optimization
+    - Jmax - highest fourier mode you want to include - balance accuracy vs computation time - 25 
+    - Minimal time between impulses - how often can you spray* optional
+      - 
+- Data input from USER data - 
+      - all of the data they put in counts, all corresponding dates
+    - can add in trailing Zeros
+    
+Sharon - she wanted to combine multiple datasets
+  - extra complication
+  - can only do it for one dataset
+    - trap measurements on the same day
+      - best approach would be to average 
+      - third output of number of measurements per data point
+      - no natural way to incorporate that into the model fitting
+    - 
+    
+    Optimization and curve fitting - logically should be split
+    
+
+
+local vs global
+  - global would be best
+   - almost certainly more complex than local
+   - 10 pulses 
+  - need to think about weight of computations on R shiny server
+
+Output - 
+  
+Fitted population curve to look at - 
+  timing of each pulse - 
+    - calculated optimal timing for control actions
+    - average mosquito pop over a year
+      - compare to non- control
+    - output file as csv - 
+    
+    
+      
