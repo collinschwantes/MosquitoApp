@@ -52,31 +52,16 @@ N = noisy mosquito pop estimates/impulses
 
 populations based soley on females?
 
-## potential pain points
-
-- date formats - 
-    - specify date format on entry
-    - look for non-sequential entries (provide warning)
-    - provide a guess date format option (?)
-    - use lubridate to convert to standard date format
-- species names
-    - use GBIF namesearch 
-    - provide warning for unrecognized species name 
-    - read in data, check names, allow user to correct 
-        - data -> names summary -> provide correction option 
-- multi trap type datasets
-   - specify trap type or multi
-- multi species type datasets 
-    - select species of interest
-- geocode data - 
-    - address lookup if lat long not provided
-    - can use geocode to get covariates
-- missing time points
-    - sharon says interpolate 
-    - need to figure out if model is robust to NA's 
-  
 
 
 Use the population data to determine a schedule for Np impulses to occur over a year,
 assuming that each impulse reduces the vector population by a fraction ρ. Let z = (z1, z2, ..., zp)
 denote the timing of the Np impulses
+## potential pain points
+
+1) Model interpretation
+2) Appropriate model outputs
+3) Computationally expensive
+  
+
+
