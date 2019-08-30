@@ -89,7 +89,7 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(id = "TabIn",
         tabPanel("Getting Started", tags$h3("Overview"), 
-                 tags$p("This project aims to make an accessible statistical model for mosquito control resource optimization. The model uses data provided by users in conjunction with temperature, mosquito natural history, and other factors to estimate potential optimal control methods (spraying, fogging, nesting habitat removal, application of larvicide, etc.)."),
+                 tags$p("This project aims to make an accessible model for mosquito control resource optimization. The model uses data provided by users to estimate the mosquito populations in the sampling area for the sampling timeperiod, and the optimal time to apply a treatment or multiple treatments."),
                  tags$h3("Instructions"),tags$hr(),
                  tags$p("This application accepts CSV and excel files (.xls, .xlsx) as inputs. None of your data are stored long term on the Rshiny servers. At the moment, only a single spreadsheet can be uploaded. If you have multiple years of data, please consolidate to one spread sheet."),
                  tags$li("Consistent date formats are required"),
@@ -98,10 +98,14 @@ ui <- fluidPage(
                  tags$li(tags$a(href = "https://github.com/collinschwantes/MosquitoApp/issues",target = "_blank", "Provide Feedback",icon("bug", "fa-1x"))),
                  tags$li("Minimum data requirements for model:"),
                  tags$ul(tags$li("Count data"),
-                         tags$li("Date Collected"),
-                         tags$li("Trap type"),
-                         tags$li("Species"),
-                         tags$li("Resource constraints"))
+                         tags$li("Date Collected")
+                         ),
+                 tags$li("User Inputs:"),
+                 tags$ul(tags$li("Mosquito Life span in days"),
+                         tags$li("Percent of poplation knocked down by treatment"),
+                         tags$li("Number of treatments applied"),
+                         tags$li("Number of days between treat")
+                 )
                  
                                 ),
         tabPanel("Data Summary", value = "datasum",
@@ -109,28 +113,52 @@ ui <- fluidPage(
                  dataTableOutput("contents")
         )
         ,
-        tabPanel("Summary Map",
-                 tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
-                 leafletOutput("DensityMap"),
-                 sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
+        # tabPanel("Summary Map",
+        #          tags$style(type = "text/css", "#DensityMap {height: 60vh !important;}"),
+        #          leafletOutput("DensityMap"),
+        #          sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
+        tabPanel("Mosquito Population Model",
+                 sliderInput(inputId = "MosLife",label = "Mosquito Lifespan in Days",min = 1,max = 30,value = 3,step = 1),
+                 p("will add a plot")
+                 ),
         tabPanel("Resouce Optimization Model",
-                 tags$h2("Model Parameters"),
+                 tags$h3("Model Parameters"),
                  fluidRow(
-                 column(width = 6,
-                   numericInput(inputId = "Knockdown",label = "Knockdown rate",min = 0,max = 100, value = 70,step = 10)
+                   h4("Treatment Inputs:"),
+                 column(width = 4,
+                   numericInput(inputId = "Knockdown",
+                                label = "Knockdown rate",
+                                min = 0,max = 50, value = 35,
+                                step = 5)
                    ),
+                 column(width = 4,
+                 numericInput(inputId = "Impulses",
+                              label = "Number of Applications",
+                              min = 0,max = 10, value = 3,step = 1)
+        
+                 ),
+                 column(width = 4,
+                        numericInput(inputId = "WaitTime",
+                                     label = "Days Between Applications",
+                                     min = 0,max = 300, value = 7,step = 7)
+                        
+                 )
+                 ),
+                 fluidRow(
+                   h4("Model Controls:"),
                  column(width = 6,
-                 numericInput(inputId = "NumTreat",label = "Number of Applications",min = 0, value = 3,step = 1)
-                 )
-                 )
-                 # radioButtons(inputId = "Pathogen",inline = T, label = "Pathogen Control",c("West Nile Virus" = "WNV",
-                 #                                                            "Dengue" = "Dengue virus",
-                 #                                                            "Nebulization" = "Nebulization",
-                 #                                                            "Environmental Sanitation" = "EnvSan",
-                 #                                                            "Gravid Traps" = "GravTrap",
-                 #                                                            "Biological Control" = "BioCon"
-                 #                                                            )
-                 # )
+                        numericInput(inputId = "Kmax", 
+                                     label = "Number of Opitimum Searches (Kmax)", 
+                                     value = 5,min = 1,max = 10 )
+                        ),
+                 column(width = 6,
+                        numericInput(inputId = "Jmax", label = "Fourier Modes (Accurarcy vs Runtime)",value = 10,min = 1,max = 25)
+                        )
+                 ),
+                 hr(),
+               fluidRow(
+                 p("will add plot")
+               )
                  
         )
       )
