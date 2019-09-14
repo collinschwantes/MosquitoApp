@@ -1,6 +1,6 @@
 ### Mosquito Control Aid 
 
-This project aims to make a statistical model for mosquito control accessible to individuals interested in mosquito control. The model uses data provided by users in conjunction with temperature, mosquito natural history, and other factors to estimate potential optimal control methods (spraying, fogging, nesting habitat removal, application of larvicide, etc.).
+This project aims to make an accessible model for mosquito control resource optimization. The model uses data provided by users to estimate the mosquito populations in the sampling area for the sampling timeperiod, and the optimal time to apply a treatment or multiple treatments.
 
 Link to application: https://collin-schwantes.shinyapps.io/MosquitoApp/
 
@@ -25,9 +25,11 @@ This application accepts CSV and excel files (.xls, .xlsx) as inputs. None of yo
 - Minimum data requirements for model:
   - Count data
   - Date Collected
-  - Trap type
-  - Species
-  - Resource constraints
+ User will provide the following inputs in the application:
+  - estimated mosquito lifespan 
+  - Percent of the mosquito population knocked down for a treatment
+  - Number of treatments to be applied in a season
+  - number of days between treatments
 
 ---
 
@@ -50,31 +52,16 @@ N = noisy mosquito pop estimates/impulses
 
 populations based soley on females?
 
-## potential pain points
-
-- date formats - 
-    - specify date format on entry
-    - look for non-sequential entries (provide warning)
-    - provide a guess date format option (?)
-    - use lubridate to convert to standard date format
-- species names
-    - use GBIF namesearch 
-    - provide warning for unrecognized species name 
-    - read in data, check names, allow user to correct 
-        - data -> names summary -> provide correction option 
-- multi trap type datasets
-   - specify trap type or multi
-- multi species type datasets 
-    - select species of interest
-- geocode data - 
-    - address lookup if lat long not provided
-    - can use geocode to get covariates
-- missing time points
-    - sharon says interpolate 
-    - need to figure out if model is robust to NA's 
-  
 
 
 Use the population data to determine a schedule for Np impulses to occur over a year,
 assuming that each impulse reduces the vector population by a fraction ρ. Let z = (z1, z2, ..., zp)
 denote the timing of the Np impulses
+## potential pain points
+
+1) Model interpretation
+2) Appropriate model outputs
+3) Computationally expensive
+  
+
+
