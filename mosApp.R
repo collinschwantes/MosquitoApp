@@ -118,8 +118,13 @@ ui <- fluidPage(
         #          leafletOutput("DensityMap"),
         #          sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Mosquito Population Model",
-                 sliderInput(inputId = "MosLife",label = "Mosquito Lifespan in Days",min = 1,max = 30,value = 3,step = 1),
-                 p("will add a plot")
+                 fluidRow(
+                  column(width = 6, sliderInput(inputId = "MosLife",label = "Mosquito Lifespan in Days",min = 1,max = 30,value = 3,step = 1)),
+                  column(width = 6, sliderInput(inputId = "MosDecay",label = "Mosquito Lifecycles Between Seasons",min = 2,max = 100,value = 3,step = 1))
+                 ),
+                 fluidRow(
+                   plotOutput("MosPopFitted")
+                 )
                  ),
         tabPanel("Resouce Optimization Model",
                  tags$h3("Model Parameters"),
@@ -387,6 +392,10 @@ server <- function(input, output, session) {
     
     df$SpeciesCol <- df[[SpeciesCol]]
     
+    #convert date to day of the year
+    df$DayOfYear  <- yday(df$Date)
+    
+    print(df$DayOfYear)
     
     return(df)
     
@@ -407,7 +416,7 @@ server <- function(input, output, session) {
      cleanData() %>% 
        ggplot(aes(x = Date, y = Count)) +
        geom_point(color = "white", alpha = .3) +
-       geom_smooth() +
+       #geom_smooth() +
        scale_x_date(date_breaks = "1 months") +
          theme_minimal() +
          theme(panel.grid  =  element_line(colour = "dark grey")) +
@@ -472,6 +481,252 @@ server <- function(input, output, session) {
    })
    
   # output$ModelResults 
+  
+  
+  ModelOutputs <- reactive({
+    
+    #
+    tau_mosq <- input$MosLife  #where tau_mosq is the mosquito lifetime input by user in units of days 
+    
+    #mu = natural mosquito death rate
+    mu <- 1 / tau_mosq #program should set mu = 1 / tau_mosq,
+    #where tau_mosq is the mosquito lifetime input by user in units of days 
+    
+    #m = number of mosquito lifetimes for population decay between seasons..
+    m <- input$MosDecay #this will be input by the user, and must be an integer greater than 2, upperbound 100, default value 3
+    
+    # N_lam = max fourier mode order to calculate
+    
+    N_lam <- input$Jmax  #user input between 1 and 100, default value 25 (I referred to this as jmax over Skype - JD)
+    
+    # day of the year 
+    
+    #get mean counts per day 
+    InputData <- cleanData() %>% 
+      dplyr::select(Count, DayOfYear) %>% 
+      group_by(DayOfYear) %>% 
+      summarize(MeanCount = mean(Count))
+    
+    
+    #first round user time inputs to integer values
+    t_in <-  InputData$DayOfYear ## grab from data input
+    
+    y_in <- InputData$MeanCount
+    
+    #defining N0 = number of input data points (not a user input)
+    N0 = length(y_in) # grab from dataset input
+    
+    #defining vector of time differences to be used later (not a user input)
+    delta_t_in <- numeric(N0 - 1) 
+    for(i in 1:(N0 - 1)){
+      delta_t_in[i] <- t_in[i+1] - t_in[i]
+      if (delta_t_in[i] < 0)
+        stop("non-increasing measurement times")
+    }
+    
+    
+    #N_pts = number of points in extended data set, N_pts = N0 + 3 always (not a user input)
+    N_pts = N0 + 3
+    
+    
+    #defining extended trap count and time data vectors
+    t_dat = numeric(N_pts)
+    
+    
+    
+    if (t_in[1] - m / mu > 0){
+      y_dat = c(0,0, y_in,0)
+      
+      t_dat[1] = 0
+      t_dat[2] = (m -1) / mu
+      for (i in 3 : (N_pts - 1)){
+        t_dat[i] = t_in[i - 2] - t_in[1] + m / mu
+      }
+      t_dat[N_pts] = t_dat[N_pts - 1] + (m) / mu
+      
+      t_dat=matrix(t_dat, ncol=1)
+      
+    } else {
+      y_dat = c(0, y_in, 0)
+      
+      t_dat[1] = 0
+      for (i in 2: (N_pts - 2)){
+        t_dat[i] = t_in[i - 1]
+      }
+      t_dat[N_pts - 1] = t_dat[N_pts - 2] + (2*(m - 1)) / mu - t_dat[2]
+      t_dat[N_pts] = t_dat[N_pts - 1] + 1 / mu
+    }
+    
+    
+    
+    #extended vector of time differences
+    delta_t_dat = numeric(N_pts)
+    for (i in 1 : (N_pts - 1)){
+      delta_t_dat[i] = t_dat[i + 1] - t_dat[i]
+    }
+    
+    delta_t_dat[N_pts] = 0
+    
+    delta_t_dat= matrix(delta_t_dat,ncol=1)
+    
+    #tau = length of 'season' in days
+    tau = t_dat[N_pts]
+    
+    
+    #Defining matrices 'J' and 'M'
+    
+    #J matrix and inverse
+    J = matrix(0, nrow= N_pts, ncol=N_pts)
+    
+    for (i in 1 : (N_pts - 1)){
+      J[i, i] = 1
+      J[i + 1, i] = -exp(-mu*delta_t_dat[i])
+    }
+    
+    J[N_pts, N_pts] = 1
+    J[1, N_pts] = -exp(-mu * delta_t_dat[N_pts])
+    
+    
+    #M matrix and inverse
+    M = matrix(0, nrow= N_pts, ncol=N_pts)
+    
+    for (i in 2 : (N_pts - 1)){
+      M[i, i] <- (1 - exp( -mu * delta_t_dat[i - 1] ) ) /(mu * delta_t_dat[i - 1] ) - exp( -mu * delta_t_dat[i - 1])
+      M[i + 1, i] <- 1 - (1 - exp(-mu * delta_t_dat[i]) )/(mu * delta_t_dat[i])
+    }
+    
+    M[N_pts, N_pts] = (1 - exp( (-1)*mu * delta_t_dat[N_pts - 1] ) ) /(mu * delta_t_dat[(N_pts - 1)] ) -exp( -mu * delta_t_dat[(N_pts - 1)])
+    M[1, N_pts] = 0
+    M[1, 1] = 0
+    M[2, 1] = 1- ( 1 - exp(-mu * delta_t_dat[1]) )/(mu * delta_t_dat[(1)]) 
+    
+    
+    #Obtaining emergence rate vector lambda_dat by contrained optimization
+    
+    Aeq = matrix(numeric(N_pts), nrow=1)
+    Aeq[(1)] = 1
+    Aeq[(N_pts)] = -1
+    beq = 0
+    bineq = numeric(N_pts)
+    lb = numeric(N_pts)
+    ###################  
+    
+    
+    objective_fun = function(x) {t(( (1 / mu) * (mldivide(J, (M %*% x), pinv = TRUE)) - y_dat))%*%( (1 / mu) * (mldivide(J, (M %*% x), pinv = TRUE)) - y_dat)}
+    
+    
+    lambda_dat = fmincon(numeric(N_pts), objective_fun, gr= NULL, method="SQP", A= (-(1 / mu) *( inv(J) %*%  (M))), b=bineq, Aeq = Aeq, beq = beq, lb = lb, ub = NULL)
+    
+    #########
+    
+    
+    #Calculating emergence rate fourier modes lam_fourier
+    
+    
+    lam_fourier = numeric(N_lam + 1)
+    
+    
+    
+    for (j in 1 : (N_pts-1)){
+      lam_fourier[1] =  lam_fourier[1] + (1 / tau)*( lambda_dat$par[j] + lambda_dat$par[j + 1] ) * delta_t_dat[j] / 2
+    } #zero mode
+    
+    
+    for (k in 2 : (N_lam + 1)) #non-zero postive modes (negative modes given by complex conjugates of positve modes) 
+    {
+      for (j in 1 : (N_pts - 1)){
+        lam_fourier[(k)] = lam_fourier[(k)] +( ( lambda_dat$par[(j + 1)] - lambda_dat$par[(j)] )  / delta_t_dat[(j)] ) *( tau / (2 * pi * (k-1) ) )* ( ( exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j + 1)] / tau ) -exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j)]/ tau) ) / (2 * pi * (k-1)) )+ complex(real = 0, imaginary = 1) * ( lambda_dat$par[(j + 1)] * exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j + 1)] / tau ) -lambda_dat$par[(j)] * exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j)] /tau ) ) / (2 * pi * (k-1) )
+      }
+    }
+    
+    #Obtaining fitted curves
+    t_steps = 6 * tau*10 + 1
+    
+    t_vec = linspace(0, 6*tau, n = t_steps);
+    lambda_fourier_function = numeric(t_steps)
+    y_fourier_uncontrolled = numeric(t_steps)
+    val_fourier = numeric(t_steps)
+    
+    
+    
+    
+    
+    for( i in 1:t_steps){
+      lambda_fourier_function[i] = lam_fourier[1]
+      for( j in 2 : (N_lam + 1)){
+        lambda_fourier_function[i] = lambda_fourier_function[i] + lam_fourier[(j)] * 
+          exp( 2 * pi * complex(real = 0, imaginary = 1) * (j-1) * t_vec[(i)]/ tau) +
+          Conj(lam_fourier[(j)]) * exp( -2 * pi * complex(real = 0, imaginary = 1) * (j-1) * t_vec[(i)] / tau)
+      }
+      
+    }
+    
+    for( i in 1:t_steps){
+      
+      for( j in 2: (N_lam + 1)){
+        val_fourier[(i)] = val_fourier[(i)] + lam_fourier[(j)] * 
+          ( tau / (2 * pi * complex(real = 0, imaginary = 1) *(j-1) + mu * tau) )*
+          ( exp( 2* pi * complex(real = 0, imaginary = 1) * (j-1) * t_vec[(i)] / tau) - 
+              exp(-mu * t_vec[(i)] )) + 
+          Conj(lam_fourier[(j)]) * ( tau / (-2 * pi * complex(real = 0, imaginary = 1) *(j-1) + mu * tau ) )*
+          ( exp( -2* pi * complex(real = 0, imaginary = 1) * (j-1)* t_vec[(i)] / tau) - exp(-mu * t_vec[(i)] ))
+      }
+    }
+    
+    
+    
+    for(k in 2:t_steps){    
+      
+      
+      y_fourier_uncontrolled[k] = y_dat[1] * exp(- mu * t_vec[k]) +
+        (lam_fourier[1] / mu ) * (1 - exp(-mu * t_vec[k])) +  val_fourier[k]
+      
+    }
+    
+    
+    y_uncontrolled_plot = numeric(10 * tau + 1)
+    lambda_fourier_plot = numeric(10 * tau + 1)
+    t_vec_plot = numeric(10 * tau + 1)
+    
+    for( i in 1 : (10*tau+1)){
+      
+      
+      y_uncontrolled_plot[i] = y_fourier_uncontrolled[(i + 10*tau*5)]
+      lambda_fourier_plot[(i)] = lambda_fourier_function[(i+ 10*tau*5)]
+      
+      t_vec_plot[(i)] = t_vec[(i)]
+    }
+    
+    ## grab objects for plots
+    ModelOutputList <- list()
+    
+    #for fitted population model
+    ModelOutputList$SummarizedPopData  <-  data.frame('DayOfYear' = t_dat, "MeanMosPop" = y_dat, stringsAsFactors = F)
+    ModelOutputList$FittedPopModel <-  data.frame("FittedTime" = t_vec_plot, "FittedPop" = y_uncontrolled_plot,stringsAsFactors = F)
+    
+    #for emergence model
+    ModelOutputList$FittedEmergenceRate <- data.frame("DayOfYear" = t_dat,
+                                                      "EmergenceRate" =  lambda_dat$par)
+    
+    ModelOutputList$ApproximatedEmergenceRate <- data.frame("FittedTime" = t_vec_plot,
+                                                            "ApproxEmergence" = lambda_fourier_plot)
+    
+  })
+  
+  # model output for Fitted Pops
+  
+  output$MosPopFitted <- renderPlot(bg = "transparent",{
+    
+      MO <- ModelOutputs()
+      
+      ggplot() +
+        geom_point(data = MO$SummarizedPopData, aes(x = DayOfYear, y = MeanMosPop)) +
+        geom_line(data = MO$FittedPopModel, aes(x = FittedTime, y = FittedPop))
+      
+  })
+  
+  # model output for fitted emergence
+  
    
 }
 
