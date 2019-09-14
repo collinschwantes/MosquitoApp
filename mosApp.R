@@ -13,6 +13,8 @@ library(rgdal)
 library(readxl)
 library(reactlog)
 library(lubridate)
+library(pracma)
+library(matlib)
 
 
 options(shiny.reactlog = TRUE)
@@ -64,19 +66,19 @@ ui <- fluidPage(
       #               list("Upload excel file"))
       # ),
        tags$hr(),
-      selectInput("TrapType", "Trap Type:",
-                  c("Oviposition" = "ovi",
-                    "Light" = "lig",
-                    "CO2" = "CO2  ")),
+      # selectInput("TrapType", "Trap Type:",
+      #             c("Oviposition" = "ovi",
+      #               "Light" = "lig",
+      #               "CO2" = "CO2  ")),
       selectInput("Count", "Count Data:",
                   c("No data uploaded data" = "NoData")
                   ),
       selectInput("Date", "Date:",
                   c("No data uploaded data" = "NoData")
                   ),
-      selectInput("Species", "Species:",
-                  c("No data uploaded data" = "NoData")
-      ),
+      # selectInput("Species", "Species:",
+      #             c("No data uploaded data" = "NoData")
+      # ),
       selectInput("Lat", "Latitude:",
                   c("No data uploaded data" = "NoData")
       ),
@@ -122,9 +124,13 @@ ui <- fluidPage(
                   column(width = 6, sliderInput(inputId = "MosLife",label = "Mosquito Lifespan in Days",min = 1,max = 30,value = 3,step = 1)),
                   column(width = 6, sliderInput(inputId = "MosDecay",label = "Mosquito Lifecycles Between Seasons",min = 2,max = 100,value = 3,step = 1))
                  ),
+                 hr(),
                  fluidRow(
-                   plotOutput("MosPopFitted")
+                   column(width = 6, h4("Fitted Population Model", style = "text-align: center;"), plotOutput("MosPopFitted")),
+                   column(width = 6, h4("Fitted Emergence Rate", style = "text-align: center;"), plotOutput("MosEmergence"))
+                   
                  )
+                 
                  ),
         tabPanel("Resouce Optimization Model",
                  tags$h3("Model Parameters"),
@@ -277,12 +283,12 @@ server <- function(input, output, session) {
                       selected = ""
     )
     
-    updateSelectInput(session, "Species",
-                      label = "Species Column",
-                      choices = ColNames,
-                      selected = ""
-    )
-
+    # updateSelectInput(session, "Species",
+    #                   label = "Species Column",
+    #                   choices = ColNames,
+    #                   selected = ""
+    # )
+# 
     updateSelectInput(session, "Lat",
                       label = "Latitude Column",
                       choices = ColNames,
@@ -294,7 +300,7 @@ server <- function(input, output, session) {
                       choices = ColNames,
                       selected = ""
     )
-   
+#    
   })
   
   ## standardize data
@@ -312,7 +318,7 @@ server <- function(input, output, session) {
     
     CountCol <- match(table = dfNames, x = input$Count)
     DateCol <- match(table = dfNames, x = input$Date)
-    SpeciesCol <- match(table = dfNames, x = input$Species)
+    #SpeciesCol <- match(table = dfNames, x = input$Species)
     
     df <- df %>% 
       filter(!is.na(.[[DateCol]]))
@@ -327,9 +333,9 @@ server <- function(input, output, session) {
       
       DateChar <- as_date(df[[DateCol]])
       
-      print(class(DateChar))
-      print(head(DateChar))
-      print(summary(DateChar))
+      # print(class(DateChar))
+      # print(head(DateChar))
+      # print(summary(DateChar))
       # DateParse <- parse_date_time(x = DateChar,orders = c("ymd","mdy","dmy"),truncated = 3)
       # print(head(DateParse))
        df[[DateCol]] <- DateChar
@@ -337,15 +343,15 @@ server <- function(input, output, session) {
       
       ClassDate <- class(df[[DateCol]])
       
-      print(ClassDate)
+      # print(ClassDate)
     }
     
     if (ClassDate == "character") {
       
-      print(head(df[[DateCol]]))
+      # print(head(df[[DateCol]]))
       
       df[[DateCol]] <- parse_date_time(df[[DateCol]],orders = c("mdy","dmy","ymd") )
-      print(df[[DateCol]])
+      # print(df[[DateCol]])
         
     }
     
@@ -390,12 +396,13 @@ server <- function(input, output, session) {
     }
     
     
-    df$SpeciesCol <- df[[SpeciesCol]]
+    #df$SpeciesCol <- df[[SpeciesCol]]
     
     #convert date to day of the year
     df$DayOfYear  <- yday(df$Date)
     
-    print(df$DayOfYear)
+    print("day of year added")
+    # print(df$DayOfYear)
     
     return(df)
     
@@ -502,12 +509,32 @@ server <- function(input, output, session) {
     # day of the year 
     
     #get mean counts per day 
+    
+    print("summarizing data")
+    
     InputData <- cleanData() %>% 
       dplyr::select(Count, DayOfYear) %>% 
       group_by(DayOfYear) %>% 
       summarize(MeanCount = mean(Count))
     
+    str(InputData)
     
+    ## can't handle more than 100 pts on my machine
+    
+    if(length(InputData$MeanCount) > 10) {
+      
+      print("Too Many data points")
+      
+      BY <- round(length(InputData$MeanCount)/10)
+      
+      subsample <- seq(1, length(InputData$MeanCount), by = BY)
+     
+      InputData <- InputData[subsample,] 
+      
+    }
+    
+    
+
     #first round user time inputs to integer values
     t_in <-  InputData$DayOfYear ## grab from data input
     
@@ -518,6 +545,9 @@ server <- function(input, output, session) {
     
     #defining vector of time differences to be used later (not a user input)
     delta_t_in <- numeric(N0 - 1) 
+    
+    print("Defining Delta_t_in")
+     
     for(i in 1:(N0 - 1)){
       delta_t_in[i] <- t_in[i+1] - t_in[i]
       if (delta_t_in[i] < 0)
@@ -533,6 +563,7 @@ server <- function(input, output, session) {
     t_dat = numeric(N_pts)
     
     
+    print("Defining y_dat")
     
     if (t_in[1] - m / mu > 0){
       y_dat = c(0,0, y_in,0)
@@ -615,8 +646,20 @@ server <- function(input, output, session) {
     objective_fun = function(x) {t(( (1 / mu) * (mldivide(J, (M %*% x), pinv = TRUE)) - y_dat))%*%( (1 / mu) * (mldivide(J, (M %*% x), pinv = TRUE)) - y_dat)}
     
     
-    lambda_dat = fmincon(numeric(N_pts), objective_fun, gr= NULL, method="SQP", A= (-(1 / mu) *( inv(J) %*%  (M))), b=bineq, Aeq = Aeq, beq = beq, lb = lb, ub = NULL)
+    print(
+      lapply(list(LengthJ = (J), lengthM = (M), lengthx = (N_pts)),FUN = length)
+    )
+
     
+    lambda_dat = fmincon(numeric(N_pts),
+                         objective_fun,
+                         gr = NULL,
+                         method = "SQP",
+                         A = (-(1 / mu) * ( inv(J) %*%  (M))), 
+                         b = bineq,
+                         Aeq = Aeq, beq = beq, lb = lb, ub = NULL)
+    
+    print("Lamba_dat created")
     #########
     
     
@@ -698,18 +741,23 @@ server <- function(input, output, session) {
     }
     
     ## grab objects for plots
-    ModelOutputList <- list()
+    ModelOutputList <- list(
     
     #for fitted population model
-    ModelOutputList$SummarizedPopData  <-  data.frame('DayOfYear' = t_dat, "MeanMosPop" = y_dat, stringsAsFactors = F)
-    ModelOutputList$FittedPopModel <-  data.frame("FittedTime" = t_vec_plot, "FittedPop" = y_uncontrolled_plot,stringsAsFactors = F)
+    "SummarizedPopData" = data.frame('DayOfYear' = t_dat, 
+                                     "MeanMosPop" = y_dat, 
+                                     stringsAsFactors = F),
+    "FittedPopModel" =  data.frame("FittedTime" = t_vec_plot, 
+                                   "FittedPop" = as.numeric(y_uncontrolled_plot), # convertfor plotting
+                                   stringsAsFactors = F),
     
     #for emergence model
-    ModelOutputList$FittedEmergenceRate <- data.frame("DayOfYear" = t_dat,
-                                                      "EmergenceRate" =  lambda_dat$par)
+    "FittedEmergencePoints" = data.frame("DayOfYear" = t_dat,
+                                        "EmergenceRate" =  as.numeric(lambda_dat$par)),
     
-    ModelOutputList$ApproximatedEmergenceRate <- data.frame("FittedTime" = t_vec_plot,
-                                                            "ApproxEmergence" = lambda_fourier_plot)
+   "ApproximatedEmergenceRate" = data.frame("FittedTime" = t_vec_plot,
+                                            "ApproxEmergence" = as.numeric(lambda_fourier_plot))
+    )
     
   })
   
@@ -719,14 +767,44 @@ server <- function(input, output, session) {
     
       MO <- ModelOutputs()
       
+      # str(MO)
+      
       ggplot() +
-        geom_point(data = MO$SummarizedPopData, aes(x = DayOfYear, y = MeanMosPop)) +
-        geom_line(data = MO$FittedPopModel, aes(x = FittedTime, y = FittedPop))
+         geom_line(data = MO$FittedPopModel, aes(x = FittedTime, y = FittedPop, color = "Fitted Population"), size = 1.5 ) +
+        geom_point(data = MO$SummarizedPopData, aes(x = DayOfYear, y = MeanMosPop, color = "Mean Count"), alpha = .75) +
+        scale_color_manual(values = c("#225ea8","#ffffff")) +
+        theme_minimal() +
+        theme(panel.grid  =  element_line(colour = "dark grey"),
+              text = element_text(colour = "white"),
+              axis.text = element_text(colour = "white")) +
+        theme(legend.position="bottom") +
+        xlab("Day of the Year") +
+        ylab("Estimated Count")
       
   })
   
   # model output for fitted emergence
   
+  
+  output$MosEmergence <- renderPlot(bg = "transparent",{
+    
+    MO <- ModelOutputs()
+    
+    # str(MO)
+    
+    ggplot() +
+      geom_line(data = MO$ApproximatedEmergenceRate, aes(x = FittedTime, y = ApproxEmergence, color = "Emergence Approximation"), size = 1.5 ) +
+      geom_point(data = MO$FittedEmergencePoints, aes(x = DayOfYear, y = EmergenceRate, color = "Mean Count"), alpha = .75) +
+      scale_color_manual(values = c("#c7e9b4","#ffffff")) +
+      theme_minimal() +
+      theme(panel.grid  =  element_line(colour = "dark grey"),
+            text = element_text(colour = "white"),
+            axis.text = element_text(colour = "white")) +
+      theme(legend.position="bottom") +
+      xlab("Day of the Year") +
+      ylab("Emergence Rate")
+    
+  })
    
 }
 
