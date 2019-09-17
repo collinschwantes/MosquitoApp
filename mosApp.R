@@ -1,6 +1,5 @@
 ## UI
 library(shiny)
-library(shiny)
 library(dplyr)
 library(ggplot2)
 library(tidyverse)
@@ -15,6 +14,7 @@ library(reactlog)
 library(lubridate)
 library(pracma)
 library(matlib)
+library(NlcOptim)
 
 
 options(shiny.reactlog = TRUE)
@@ -402,7 +402,6 @@ server <- function(input, output, session) {
     df$DayOfYear  <- yday(df$Date)
     
     print("day of year added")
-    # print(df$DayOfYear)
     
     return(df)
     
@@ -411,15 +410,13 @@ server <- function(input, output, session) {
    output$contents <- renderDataTable(options = list(scrollX = TRUE), { 
     # input$file1 will be NULL initially. 
      validate(
-       need(expr = input$file1 != "", message = "")
+       need(expr = input$file1 != "", message = "Upload a file")
      ) 
-     
      MosData()
   })
   
    output$MosPopPlot <- renderPlot(bg = "transparent",{
-     
-     
+
      cleanData() %>% 
        ggplot(aes(x = Date, y = Count)) +
        geom_point(color = "white", alpha = .3) +
@@ -515,23 +512,25 @@ server <- function(input, output, session) {
     InputData <- cleanData() %>% 
       dplyr::select(Count, DayOfYear) %>% 
       group_by(DayOfYear) %>% 
-      summarize(MeanCount = mean(Count))
-    
+      summarize(MeanCount = mean(Count)) 
+  
+      InputData <- na.omit(InputData)
+      
     str(InputData)
     
     ## can't handle more than 100 pts on my machine
     
-    if(length(InputData$MeanCount) > 10) {
-      
-      print("Too Many data points")
-      
-      BY <- round(length(InputData$MeanCount)/10)
-      
-      subsample <- seq(1, length(InputData$MeanCount), by = BY)
-     
-      InputData <- InputData[subsample,] 
-      
-    }
+    # if(length(InputData$MeanCount) > 10) {
+    #   
+    #   print("Too Many data points")
+    #   
+    #   BY <- round(length(InputData$MeanCount)/10)
+    #   
+    #   subsample <- seq(1, length(InputData$MeanCount), by = BY)
+    #  
+    #   InputData <- InputData[subsample,] 
+    #   
+    # }
     
     
 
@@ -737,14 +736,31 @@ server <- function(input, output, session) {
       y_uncontrolled_plot[i] = y_fourier_uncontrolled[(i + 10*tau*5)]
       lambda_fourier_plot[(i)] = lambda_fourier_function[(i+ 10*tau*5)]
       
-      t_vec_plot[(i)] = t_vec[(i)]
+      #new code shifts times back to orginal values for model output
+      if( t_in[1] - m / mu > 0){
+        t_vec_plot[(i)] = t_vec[(i)]-t_dat[(3)] +t_in[(1)];
+      } else {
+        t_vec_plot[(i)] = t_vec[(i)] -t_dat[(2)] + t_in[(1)];
+        
+      }
     }
     
+    
+    #new code shifts times back to orginal values for data point plotting
+    t_dat_plot = numeric(N_pts)
+    for(i in 1:N_pts){
+      
+      if( t_in[(1)] - m / mu > 0){
+        t_dat_plot[i] = t_dat[i]  - t_dat[(3)] + t_in[(1)];
+      } else {
+        t_dat_plot[i] = t_dat[i]  - t_dat[(2)] + t_in[(1)];
+      }
+    }
     ## grab objects for plots
     ModelOutputList <- list(
     
     #for fitted population model
-    "SummarizedPopData" = data.frame('DayOfYear' = t_dat, 
+    "SummarizedPopData" = data.frame('DayOfYear' = t_dat_plot, 
                                      "MeanMosPop" = y_dat, 
                                      stringsAsFactors = F),
     "FittedPopModel" =  data.frame("FittedTime" = t_vec_plot, 
@@ -752,7 +768,7 @@ server <- function(input, output, session) {
                                    stringsAsFactors = F),
     
     #for emergence model
-    "FittedEmergencePoints" = data.frame("DayOfYear" = t_dat,
+    "FittedEmergencePoints" = data.frame("DayOfYear" = t_dat_plot,
                                         "EmergenceRate" =  as.numeric(lambda_dat$par)),
     
    "ApproximatedEmergenceRate" = data.frame("FittedTime" = t_vec_plot,
