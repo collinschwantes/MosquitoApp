@@ -15,6 +15,7 @@ library(lubridate)
 library(pracma)
 library(matlib)
 library(NlcOptim)
+library(shinycssloaders)
 
 
 options(shiny.reactlog = TRUE)
@@ -126,8 +127,12 @@ ui <- fluidPage(
                  ),
                  hr(),
                  fluidRow(
-                   column(width = 6, h4("Fitted Population Model", style = "text-align: center;"), plotOutput("MosPopFitted")),
-                   column(width = 6, h4("Fitted Emergence Rate", style = "text-align: center;"), plotOutput("MosEmergence"))
+                   column(width = 6, h4("Fitted Population Model", style = "text-align: center;"),
+                          withSpinner(plotOutput("MosPopFitted"))
+                          ),
+                   column(width = 6, h4("Fitted Emergence Rate", style = "text-align: center;"), 
+                          withSpinner(plotOutput("MosEmergence"))
+                          )
                    
                  )
                  
@@ -778,6 +783,8 @@ server <- function(input, output, session) {
   })
   
   # model output for Fitted Pops
+  
+  #ModelOutputs_d <- debounce(ModelOutputs,millis = 1000)
   
   output$MosPopFitted <- renderPlot(bg = "transparent",{
     
