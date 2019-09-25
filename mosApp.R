@@ -244,7 +244,6 @@ server <- function(input, output, session) {
   
   #create reactive for CSV
   
-  
   MosData <- reactive({ 
     
     req(dataFile())
@@ -582,7 +581,7 @@ server <- function(input, output, session) {
       t_dat=matrix(t_dat, ncol=1)
       
     } else {
-      y_dat = c(0, y_in, 0)
+      y_dat = c(0, y_in, 0, 0)
       
       t_dat[1] = 0
       for (i in 2: (N_pts - 2)){
