@@ -16,6 +16,10 @@ library(pracma)
 library(matlib)
 library(NlcOptim)
 library(shinycssloaders)
+library(nloptr)
+library(sfsmisc) 
+
+source("OptimalControlFunctions.R")
 
 
 options(shiny.reactlog = TRUE)
@@ -121,40 +125,51 @@ ui <- fluidPage(
         #          leafletOutput("DensityMap"),
         #          sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Mosquito Population Model",
+                 br(),
                  fluidRow(
-                  column(width = 6, sliderInput(inputId = "MosLife",label = "Mosquito Lifespan in Days",min = 1,max = 30,value = 3,step = 1)),
-                  column(width = 6, sliderInput(inputId = "MosDecay",label = "Mosquito Lifecycles Between Seasons",min = 2,max = 100,value = 3,step = 1))
+                  column(width = 4, sliderInput(inputId = "MosLife",
+                                                label = "Mosquito Lifespan in Days",
+                                                min = 1,max = 30,value = 3,step = 1)),
+                  column(width = 4, sliderInput(inputId = "MosDecay",
+                                                label = "Mosquito Lifecycles Between Seasons",
+                                                min = 2,max = 100,value = 3,step = 1)),
+                  column(width = 4,
+                         sliderInput(inputId = "Jmax", label = "Fourier Modes (Accurarcy vs Speed)",
+                                      value = 10,min = 1,max = 200, step = 1)
+                  )
                  ),
                  hr(),
                  fluidRow(
+
                    column(width = 6, h4("Fitted Population Model", style = "text-align: center;"),
                           withSpinner(plotOutput("MosPopFitted"))
                           ),
-                   column(width = 6, h4("Fitted Emergence Rate", style = "text-align: center;"), 
+                    column(width = 6, h4("Fitted Emergence Rate", style = "text-align: center;"), 
                           withSpinner(plotOutput("MosEmergence"))
                           )
                    
-                 )
+                   
                  
+                    )
                  ),
         tabPanel("Resouce Optimization Model",
                  tags$h3("Model Parameters"),
                  fluidRow(
                    h4("Treatment Inputs:"),
                  column(width = 4,
-                   numericInput(inputId = "Knockdown",
-                                label = "Knockdown rate",
-                                min = 0,max = 50, value = 35,
-                                step = 5)
+                   numericInput(inputId = "rho",
+                                label = "Percent Knockdown",
+                                min = 1,max = 30, value = 15,
+                                step = 1)
                    ),
                  column(width = 4,
-                 numericInput(inputId = "Impulses",
+                 numericInput(inputId = "Npulse",
                               label = "Number of Applications",
                               min = 0,max = 10, value = 3,step = 1)
         
                  ),
                  column(width = 4,
-                        numericInput(inputId = "WaitTime",
+                        numericInput(inputId = "days_between",
                                      label = "Days Between Applications",
                                      min = 0,max = 300, value = 7,step = 7)
                         
@@ -167,8 +182,14 @@ ui <- fluidPage(
                                      label = "Number of Opitimum Searches (Kmax)", 
                                      value = 5,min = 1,max = 10 )
                         ),
+                 ## add global opt parameter 
                  column(width = 6,
-                        numericInput(inputId = "Jmax", label = "Fourier Modes (Accurarcy vs Runtime)",value = 10,min = 1,max = 25)
+                        selectInput(inputId = "global_opt", 
+                                    label = "Optimization Algorithm", 
+                                    choices =  c("Local - Fastest" = 0,
+                                                 "Global - GN_DIRECT_L_RAND" = 1,
+                                                 "Global - GN_ISRES" = 2),
+                                    selected = 0)
                         )
                  ),
                  hr(),
@@ -828,6 +849,445 @@ server <- function(input, output, session) {
     
   })
    
+  
+  #### optmization model 
+  
+  
+  OptModel <- reactive({
+    
+  
+    #  max number of dynamics fourier modes to use
+    #  in calculating fourier sum 
+    #  (different than N_lam = max emergence fourier mode
+    #  set by user for curve fitting portion of the code.)
+    #  kmax should be an integer between 2 and 200, defualt at 20
+
+    kmax <- input$Kmax 
+    
+    
+    # This variable lets the user select between local optimization
+    # and two global optimization schemes.  Local optimization 
+    # (global_opt = 0) is MUCH MUCH faster than the global optimizations
+    # and tends to work well enough, but is not guaranteed to give the
+    # actual optimal control protocol.  For global_opt = 1, the code
+    # uses the "directL" global optimization.  This is the faster of
+    # the two global options, but tends to be less accurate, and it 
+    # can not take into account the minimum number of days between 
+    # pulses specified by the user.  For global_opt = 2, the code 
+    # uses the "ISRES" global optimization which is pretty slow, 
+    # but tends to be more accurate, and can take into account 
+    # the minimum number of days between pulses specified by the user. 
+    
+    global_opt <- input$global_opt
+    
+    # number of pulses (control activities)
+    # set by user, integer between 1 and 10
+    
+    Npulse <- input$Npulse
+    
+    # percent knockdown (user set between .01 and 
+    # .30, e.g. 1% to 30% knockdown)
+    
+    rho <- (input$rho)/100
+    
+    # minimum number of days allowed between 
+    # pulses set by user (integer bewtween 0 and 30 days) 
+    
+    days_between <- input$days_between
+    
+    
+    ########### repeated from curve fitting !!!!
+    ########### should fix to only run once... 
+    
+    #
+    tau_mosq <- input$MosLife  #where tau_mosq is the mosquito lifetime input by user in units of days 
+    
+    #mu = natural mosquito death rate
+    mu <- 1 / tau_mosq #program should set mu = 1 / tau_mosq,
+    #where tau_mosq is the mosquito lifetime input by user in units of days 
+    
+    #m = number of mosquito lifetimes for population decay between seasons..
+    m <- input$MosDecay #this will be input by the user, and must be an integer greater than 2, upperbound 100, default value 3
+    
+    # N_lam = max fourier mode order to calculate
+    
+    N_lam <- input$Jmax  #user input between 1 and 100, default value 25 (I referred to this as jmax over Skype - JD)
+    
+    # day of the year 
+    
+    #get mean counts per day 
+    
+    print("summarizing data")
+    
+    InputData <- cleanData() %>% 
+      dplyr::select(Count, DayOfYear) %>% 
+      group_by(DayOfYear) %>% 
+      summarize(MeanCount = mean(Count)) 
+    
+    InputData <- na.omit(InputData)
+    
+    str(InputData)
+    
+    ## can't handle more than 100 pts on my machine
+    
+    # if(length(InputData$MeanCount) > 10) {
+    #   
+    #   print("Too Many data points")
+    #   
+    #   BY <- round(length(InputData$MeanCount)/10)
+    #   
+    #   subsample <- seq(1, length(InputData$MeanCount), by = BY)
+    #  
+    #   InputData <- InputData[subsample,] 
+    #   
+    # }
+    
+    
+    
+    #first round user time inputs to integer values
+    t_in <-  InputData$DayOfYear ## grab from data input
+    
+    y_in <- InputData$MeanCount
+    
+    #defining N0 = number of input data points (not a user input)
+    N0 = length(y_in) # grab from dataset input
+    
+    #defining vector of time differences to be used later (not a user input)
+    delta_t_in <- numeric(N0 - 1) 
+    
+    print("Defining Delta_t_in")
+    
+    for(i in 1:(N0 - 1)){
+      delta_t_in[i] <- t_in[i+1] - t_in[i]
+      if (delta_t_in[i] < 0)
+        stop("non-increasing measurement times")
+    }
+    
+    
+    #N_pts = number of points in extended data set, N_pts = N0 + 3 always (not a user input)
+    N_pts = N0 + 3
+    
+    
+    #defining extended trap count and time data vectors
+    t_dat = numeric(N_pts)
+    
+    
+    print("Defining y_dat")
+    
+    if (t_in[1] - m / mu > 0){
+      y_dat = c(0,0, y_in,0)
+      
+      t_dat[1] = 0
+      t_dat[2] = (m -1) / mu
+      for (i in 3 : (N_pts - 1)){
+        t_dat[i] = t_in[i - 2] - t_in[1] + m / mu
+      }
+      t_dat[N_pts] = t_dat[N_pts - 1] + (m) / mu
+      
+      t_dat=matrix(t_dat, ncol=1)
+      
+    } else {
+      y_dat = c(0, y_in, 0, 0)
+      
+      t_dat[1] = 0
+      for (i in 2: (N_pts - 2)){
+        t_dat[i] = t_in[i - 1]
+      }
+      t_dat[N_pts - 1] = t_dat[N_pts - 2] + (2*(m - 1)) / mu - t_dat[2]
+      t_dat[N_pts] = t_dat[N_pts - 1] + 1 / mu
+    }
+    
+    
+    
+    #extended vector of time differences
+    delta_t_dat = numeric(N_pts)
+    for (i in 1 : (N_pts - 1)){
+      delta_t_dat[i] = t_dat[i + 1] - t_dat[i]
+    }
+    
+    delta_t_dat[N_pts] = 0
+    
+    delta_t_dat= matrix(delta_t_dat,ncol=1)
+    
+    #tau = length of 'season' in days
+    tau = t_dat[N_pts]
+    
+    
+    #Defining matrices 'J' and 'M'
+    
+    #J matrix and inverse
+    J = matrix(0, nrow= N_pts, ncol=N_pts)
+    
+    for (i in 1 : (N_pts - 1)){
+      J[i, i] = 1
+      J[i + 1, i] = -exp(-mu*delta_t_dat[i])
+    }
+    
+    J[N_pts, N_pts] = 1
+    J[1, N_pts] = -exp(-mu * delta_t_dat[N_pts])
+    
+    
+    #M matrix and inverse
+    M = matrix(0, nrow= N_pts, ncol=N_pts)
+    
+    for (i in 2 : (N_pts - 1)){
+      M[i, i] <- (1 - exp( -mu * delta_t_dat[i - 1] ) ) /(mu * delta_t_dat[i - 1] ) - exp( -mu * delta_t_dat[i - 1])
+      M[i + 1, i] <- 1 - (1 - exp(-mu * delta_t_dat[i]) )/(mu * delta_t_dat[i])
+    }
+    
+    M[N_pts, N_pts] = (1 - exp( (-1)*mu * delta_t_dat[N_pts - 1] ) ) /(mu * delta_t_dat[(N_pts - 1)] ) -exp( -mu * delta_t_dat[(N_pts - 1)])
+    M[1, N_pts] = 0
+    M[1, 1] = 0
+    M[2, 1] = 1- ( 1 - exp(-mu * delta_t_dat[1]) )/(mu * delta_t_dat[(1)]) 
+    
+    
+    #Obtaining emergence rate vector lambda_dat by contrained optimization
+    
+    Aeq = matrix(numeric(N_pts), nrow=1)
+    Aeq[(1)] = 1
+    Aeq[(N_pts)] = -1
+    beq = 0
+    bineq = numeric(N_pts)
+    lb = numeric(N_pts)
+    ###################  
+    
+    
+    objective_fun = function(x) {t(( (1 / mu) * (mldivide(J, (M %*% x), pinv = TRUE)) - y_dat))%*%( (1 / mu) * (mldivide(J, (M %*% x), pinv = TRUE)) - y_dat)}
+    
+    
+    print(
+      lapply(list(LengthJ = (J), lengthM = (M), lengthx = (N_pts)),FUN = length)
+    )
+    
+    
+    lambda_dat = fmincon(numeric(N_pts),
+                         objective_fun,
+                         gr = NULL,
+                         method = "SQP",
+                         A = (-(1 / mu) * ( inv(J) %*%  (M))), 
+                         b = bineq,
+                         Aeq = Aeq, beq = beq, lb = lb, ub = NULL)
+    
+    print("Lamba_dat created")
+    #########
+    
+    
+    #Calculating emergence rate fourier modes lam_fourier
+    
+    
+    lam_fourier = numeric(N_lam + 1)
+    
+    
+    
+    for (j in 1 : (N_pts-1)){
+      lam_fourier[1] =  lam_fourier[1] + (1 / tau)*( lambda_dat$par[j] + lambda_dat$par[j + 1] ) * delta_t_dat[j] / 2
+    } #zero mode
+    
+    
+    for (k in 2 : (N_lam + 1)) #non-zero postive modes (negative modes given by complex conjugates of positve modes) 
+    {
+      for (j in 1 : (N_pts - 1)){
+        lam_fourier[(k)] = lam_fourier[(k)] +( ( lambda_dat$par[(j + 1)] - lambda_dat$par[(j)] )  / delta_t_dat[(j)] ) *( tau / (2 * pi * (k-1) ) )* ( ( exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j + 1)] / tau ) -exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j)]/ tau) ) / (2 * pi * (k-1)) )+ complex(real = 0, imaginary = 1) * ( lambda_dat$par[(j + 1)] * exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j + 1)] / tau ) -lambda_dat$par[(j)] * exp(- 2 * pi * complex(real = 0, imaginary = 1) * (k-1) * t_dat[(j)] /tau ) ) / (2 * pi * (k-1) )
+      }
+    }
+    
+    
+    
+    #code to execute optimization algorithms
+    
+    #install.packages("nloptr")
+    library("nloptr") #used for local cobyla optimum function and global optimum functions
+    
+    if(Npulse == 1){ # 1 pulse
+      fun1 = function(x)sum_1_pulse(x,rho, mu, tau, kmax, lam_fourier)
+      guess = tau /2
+      
+      
+      if(global_opt == 0){ #local optimum 
+        opt_out = cobyla(guess, fun1, lower = 0, upper = tau)
+        
+        times = opt_out$par
+        ave_pop_fourier = opt_out$value
+        
+      }else if(global_opt == 1){ #global optimum directL
+        
+        opt_out = directL(fun1, lower = 0, upper = tau, randomized = TRUE)
+        
+        times = opt_out$par
+        ave_pop_fourier = opt_out$value
+        
+      }else if(global_opt == 2){ #global optimum isres
+        
+        
+        opt_out = nloptr(x0=guess, eval_f=fun1, lb = 0, ub = tau, eval_g_ineq = NULL, eval_g_eq = NULL,                 opts = list(algorithm="NLOPT_GN_ISRES",maxeval=10000))
+        
+        times = opt_out$solution
+        ave_pop_fourier = opt_out$objective
+        
+      }
+      
+      
+    } else{ #2 or more pulses
+      funN = function(x)sum_N_pulse(x,rho, Npulse, mu, tau, kmax, lam_fourier) 
+      
+      #matrix and vector for inequality constraints to enforce minimum days between
+      A_mat = matrix(0,nrow=Npulse - 1, ncol=Npulse)
+      b_vec = (-1) * days_between * matrix(1, Npulse-1, 1)
+      
+      for (i in 1:(Npulse -1)){
+        A_mat[i,i] = 1
+        A_mat[i, i+ 1] = -1
+      }
+      
+      
+      l_bound = numeric(Npulse) #column vector of zeros for pulse lower bound
+      u_bound = tau * matrix(1,Npulse, 1) #column vector of taus for pulse upper bound
+      
+      guess = numeric(Npulse); #vector for initial guesses for fmincon
+      
+      for(i in 1:Npulse){
+        if(t_in[1] - m / mu > 0 ){
+          
+          guess[i] = i * (t_dat[N_pts - 1] - t_dat[3]) / (Npulse + 1) + t_dat[3]
+        }else{
+          
+          guess[i] = i * (t_dat[N_pts - 2] - t_dat[2]) / (Npulse + 1) + t_dat[2]
+        }
+      } 
+      
+      if(global_opt == 0){#local optimum  
+        
+        opt_out = fmincon(guess, funN, gr= NULL, method="SQP", A = A_mat, b=b_vec, Aeq = NULL, beq = NULL, lb = l_bound, ub = u_bound)
+        
+        
+        times = opt_out$par
+        ave_pop_fourier = opt_out$value
+        
+      }else if(global_opt == 1){ #global optimum directL
+        
+        opt_out = directL(funN, lower = l_bound, upper = u_bound, randomized = TRUE)
+        
+        times = opt_out$par
+        ave_pop_fourier = opt_out$value
+        
+      }else if(global_opt == 2){ #global optimum isres
+        
+        ineq = function(x){(-1)*A_mat %*%x - b_vec}
+        
+        opt_out = nloptr(x0=guess, eval_f=funN, lb = l_bound, ub = u_bound, eval_g_ineq = ineq, eval_g_eq = NULL,                 opts = list(algorithm="NLOPT_GN_ISRES",maxeval=10000))
+        
+        times = opt_out$solution
+        ave_pop_fourier = opt_out$objective
+        
+      }
+    }
+    
+    
+    #code to shift times and generate plot data
+    
+    #shift pulse times back to original times input by user
+    if (t_in[1]- (m/mu)>0){ 
+      pulse_times_output = times - t_dat[3] + t_in[1]
+    }else {
+      pulse_times_output = times - t_dat[2] + t_in[1]
+    }
+    
+    
+    
+    
+    #code to plot results:  
+    t_steps = 6 * tau*10 + 1 # ten time steps per day, six total seasons (need to integrate over many seasons to reach periodic population curves)
+    t_vec = linspace(0, 6*tau, n = t_steps); #list between 0 and 6*tau, t_steps long
+    
+    
+    y_fourier_controlled = numeric(t_steps) #list (row vector) for controlled population values at each time step
+    y_fourier_uncontrolled = numeric(t_steps) #list (row vector) for uncontrolled population values at each time step
+    
+    
+    #simple integrator to calculate population values
+    for (i in 2:t_steps){
+      for (j in 1: N_pts - 1){
+        if (mod(t_vec[i-1], tau) >= t_dat[j] && mod(t_vec[i-1],tau) < t_dat[j + 1]){
+          y_fourier_controlled[i] = y_fourier_controlled[i-1] +(-mu * y_fourier_controlled[i-1] +lambda_dat$par[j+1] * (mod(t_vec[i-1], tau) -t_dat[j])/ delta_t_dat[j] +lambda_dat$par[j] * (t_dat[j+1] -mod(t_vec[i-1], tau)) / delta_t_dat[j])*(t_vec[i] - t_vec[i-1]);
+          
+          y_fourier_uncontrolled[i] = y_fourier_uncontrolled[i-1] +(-mu * y_fourier_uncontrolled[i-1] +lambda_dat$par[j+1] * (mod(t_vec[i-1], tau) -t_dat[j])/ delta_t_dat[j] +lambda_dat$par[j] * (t_dat[j+1] -mod(t_vec[i-1], tau)) / delta_t_dat[j])*(t_vec[i] - t_vec[i-1])
+        }
+        
+      }
+      
+      #impulses for the controlled population
+      for (j in 1:Npulse){
+        if (mod(t_vec[i], tau) >= times[j] && mod(t_vec[i-1], tau) < times[j]){
+          y_fourier_controlled[i] = (1-rho) * y_fourier_controlled[i];
+        }
+      }
+      
+    }
+    
+    pop_cont = numeric(10*tau+1) #list for controlled population vlaues, one season long
+    pop_un_cont = numeric(10*tau+1) #list for uncontrolled population vlaues, one season long 
+    t_vec_plot = numeric(10*tau+1) #list for time values, one season long
+    
+    for (i in 1:(10*tau+1)){
+      pop_cont[i] = y_fourier_controlled[i + 10*tau*5] #take controlled population values from the integration for the final season
+      pop_un_cont[i] = y_fourier_uncontrolled[i+ 10*tau*5] #take uncontrolled population values from the integration for the final season
+      
+      #shift plot times for population curves back to original times input by user
+      if (t_in[1] - m / mu > 0) {
+        t_vec_plot[i] = t_vec[i]-t_dat[(3)] +t_in[(1)]
+        
+      } else{
+        t_vec_plot[i] = t_vec[i] -t_dat[(2)] + t_in[(1)]
+      }
+      
+      
+    }
+    
+    
+    #shift data times back to orginal times input by user
+    if (t_in[(1)] - (m / mu) > 0){ 
+      t_dat_plot = t_dat  - t_dat[(3)] + t_in[(1)]
+    }else {
+      t_dat_plot = t_dat  - t_dat[2] + t_in[1]
+    }
+    
+    
+    #code to generate outputs to user
+    
+    #install.packages("sfsmisc")
+    library("sfsmisc") #for the integrate.xy function
+    
+    
+    ave_pop_un_cont = integrate.xy(t_vec_plot, pop_un_cont)/(tau)
+    ave_pop_cont = integrate.xy(t_vec_plot, pop_cont)/(tau)
+    
+    percent_reduction = (ave_pop_un_cont - ave_pop_cont) / ave_pop_un_cont
+    accuracy_measure = (ave_pop_fourier - ave_pop_cont) / ave_pop_cont
+    
+    
+    #outputs to display to user
+    print(pulse_times_output) #times of optimal pulses in units of day of year
+    print(ave_pop_un_cont) #average population over interval (0, tau) under uncontrolledfourier dynamics
+    print(ave_pop_cont) #average population over interval (0, tau) under controlled fourier dynamics
+    print(percent_reduction) #fractional reduction in average controlled population relative to uncontrolled 
+    print(accuracy_measure) #reliability measuere - if the magnitude of this quantity is larger than .05 or .1 or so, then the fourier sum may be of unrelaiable accuracy, and the user should try increasing kmax
+    
+    #plots to display to user
+    plot(t_dat_plot, y_dat, ylim = c(0,1.5 * max(y_dat)), xlim=c(t_dat_plot[1],t_dat_plot[1]+tau), col="blue",
+         main="Fitted Population Model",
+         ylab="Mosquito population count",
+         xlab="Day of year")
+    lines(t_vec_plot, pop_un_cont, col="red")
+    lines(t_vec_plot, pop_cont, col = "orange")
+    legend("topleft",c("Data","Uncontrolled Fourier Approximation", "Controlled Fourier Approximation"),fill=c("blue","red","orange"))
+    
+    
+  })
+  
+  
+  
+  
+  
 }
 
 shinyApp(ui, server)

@@ -1683,7 +1683,9 @@ kmax = 20 #max number of dynamics fourier modes to use in calculating fourier su
 global_opt = 0 #set to 0 if user chooses local optimum, 1 if user chooses golbal GN_DIRECT_L_RAND method, 2 if user chooses global GN_ISRES mthod
 
 Npulse = 4 #number of pulses, set by user, integer between 1 and 10
+
 rho = .30 #percent knockdown (user set between .01 and .30, e.g. 1% to 30% knockdown)
+
 days_between = 3 #minimum number of days allowed between pulses set by user (integer bewtween 0 and 30 days) 
 
 
