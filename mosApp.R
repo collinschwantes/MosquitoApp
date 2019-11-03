@@ -22,7 +22,7 @@ library(sfsmisc)
 source("OptimalControlFunctions.R")
 
 
-options(shiny.reactlog = TRUE)
+options(shiny.reactlog = FALSE)
 
 ui <- fluidPage(
   theme = shinytheme("darkly"),
@@ -32,7 +32,7 @@ ui <- fluidPage(
     column(4,
     tags$h4(
       tags$a(href = "https://github.com/collinschwantes/MosquitoApp", 
-             target="_blank",
+             target = "_blank",
              "Instructions and Github Repo")
       )
      ),
@@ -109,6 +109,7 @@ ui <- fluidPage(
                          ),
                  tags$li("User Inputs:"),
                  tags$ul(tags$li("Mosquito Life span in days"),
+                         tags$li("Mosquito Lifecycle Between Seasons"), ## needs def
                          tags$li("Percent of poplation knocked down by treatment"),
                          tags$li("Number of treatments applied"),
                          tags$li("Number of days between treat")
@@ -177,25 +178,38 @@ ui <- fluidPage(
                  ),
                  fluidRow(
                    h4("Model Controls:"),
-                 column(width = 6,
+                 column(width = 4,
                         numericInput(inputId = "Kmax", 
                                      label = "Number of Opitimum Searches (Kmax)", 
-                                     value = 5,min = 1,max = 10 )
+                                     value = 1,min = 1,max = 10 )
                         ),
                  ## add global opt parameter 
-                 column(width = 6,
+                 column(width = 4,
                         selectInput(inputId = "global_opt", 
                                     label = "Optimization Algorithm", 
                                     choices =  c("Local - Fastest" = 0,
                                                  "Global - GN_DIRECT_L_RAND" = 1,
                                                  "Global - GN_ISRES" = 2),
                                     selected = 0)
-                        )
+                        ),
+                  column(width = 4,
+                        sliderInput(inputId = "JmaxOpt", 
+                                  label = "Fourier Modes (Accurarcy vs Speed)",
+                                  value = 1,min = 1,max = 200, step = 1))
                  ),
                  hr(),
-               fluidRow(
-                 p("will add plot")
-               )
+                 fluidRow(
+                   
+                   column(width = 8, h4("Fitted Population Model", style = "text-align: center;"),
+                          withSpinner(plotOutput("OptModel"))
+                   ),
+                   column(width = 4, h4("Summary Statistics", style = "text-align: center;") 
+                          
+                   )
+                   
+                   
+                   
+                 )
                  
         )
       )
@@ -849,9 +863,9 @@ server <- function(input, output, session) {
     
   })
    
-  
-  #### optmization model 
-  
+  ################################
+  #### optmization model #########
+  ################################  
   
   OptModel <- reactive({
     
@@ -911,7 +925,7 @@ server <- function(input, output, session) {
     
     # N_lam = max fourier mode order to calculate
     
-    N_lam <- input$Jmax  #user input between 1 and 100, default value 25 (I referred to this as jmax over Skype - JD)
+    N_lam <- input$JmaxOpt  #user input between 1 and 100, default value 25 (I referred to this as jmax over Skype - JD)
     
     # day of the year 
     
@@ -929,19 +943,6 @@ server <- function(input, output, session) {
     str(InputData)
     
     ## can't handle more than 100 pts on my machine
-    
-    # if(length(InputData$MeanCount) > 10) {
-    #   
-    #   print("Too Many data points")
-    #   
-    #   BY <- round(length(InputData$MeanCount)/10)
-    #   
-    #   subsample <- seq(1, length(InputData$MeanCount), by = BY)
-    #  
-    #   InputData <- InputData[subsample,] 
-    #   
-    # }
-    
     
     
     #first round user time inputs to integer values
@@ -1225,7 +1226,10 @@ server <- function(input, output, session) {
     }
     
     pop_cont = numeric(10*tau+1) #list for controlled population vlaues, one season long
+    message("pop cont created")
     pop_un_cont = numeric(10*tau+1) #list for uncontrolled population vlaues, one season long 
+    
+    str(pop_un_cont)
     t_vec_plot = numeric(10*tau+1) #list for time values, one season long
     
     for (i in 1:(10*tau+1)){
@@ -1254,9 +1258,6 @@ server <- function(input, output, session) {
     
     #code to generate outputs to user
     
-    #install.packages("sfsmisc")
-    library("sfsmisc") #for the integrate.xy function
-    
     
     ave_pop_un_cont = integrate.xy(t_vec_plot, pop_un_cont)/(tau)
     ave_pop_cont = integrate.xy(t_vec_plot, pop_cont)/(tau)
@@ -1265,26 +1266,106 @@ server <- function(input, output, session) {
     accuracy_measure = (ave_pop_fourier - ave_pop_cont) / ave_pop_cont
     
     
+    # create a list for outputs and render them
+    
     #outputs to display to user
-    print(pulse_times_output) #times of optimal pulses in units of day of year
-    print(ave_pop_un_cont) #average population over interval (0, tau) under uncontrolledfourier dynamics
-    print(ave_pop_cont) #average population over interval (0, tau) under controlled fourier dynamics
-    print(percent_reduction) #fractional reduction in average controlled population relative to uncontrolled 
-    print(accuracy_measure) #reliability measuere - if the magnitude of this quantity is larger than .05 or .1 or so, then the fourier sum may be of unrelaiable accuracy, and the user should try increasing kmax
     
-    #plots to display to user
-    plot(t_dat_plot, y_dat, ylim = c(0,1.5 * max(y_dat)), xlim=c(t_dat_plot[1],t_dat_plot[1]+tau), col="blue",
-         main="Fitted Population Model",
-         ylab="Mosquito population count",
-         xlab="Day of year")
-    lines(t_vec_plot, pop_un_cont, col="red")
-    lines(t_vec_plot, pop_cont, col = "orange")
-    legend("topleft",c("Data","Uncontrolled Fourier Approximation", "Controlled Fourier Approximation"),fill=c("blue","red","orange"))
+    #print object list
+    
+    PrintObj <- list(
+      pulse_times_output = pulse_times_output, #times of optimal pulses in units of day of year
+      ave_pop_un_cont = ave_pop_un_cont, #average population over interval (0, tau) under uncontrolledfourier dynamics
+      ave_pop_cont = ave_pop_cont, #average population over interval (0, tau) under controlled fourier dynamics
+      percent_reduction = percent_reduction, #fractional reduction in average controlled population relative to uncontrolled 
+      accuracy_measure = accuracy_measure #reliability measuere - if the magnitude of this quantity is larger than .05 or .1 or so, then the fourier sum may be of unrelaiable accuracy, and the user should try increasing kmax
+      
+    )
     
     
-  })
+    # 
+    # #plots to display to user
+    # plot(t_dat_plot, y_dat, ylim = c(0,1.5 * max(y_dat)), xlim=c(t_dat_plot[1],t_dat_plot[1]+tau), col="blue",
+    #      main="Fitted Population Model",
+    #      ylab="Mosquito population count",
+    #      xlab="Day of year")
+    # lines(t_vec_plot, pop_un_cont, col="red")
+    # lines(t_vec_plot, pop_cont, col = "orange")
+    # legend("topleft",c("Data","Uncontrolled Fourier Approximation", "Controlled Fourier Approximation"),fill=c("blue","red","orange"))
+    # 
+    
+    PlotObject <- list(
+      #point dataframe
+      df_points = data.frame(
+        t_dat = t_dat,
+        y_dat = y_dat), 
+      #line dataframe
+      df_lines = data.frame(
+        t_vec_plot =  t_vec_plot,
+        pop_un_cont = pop_un_cont,
+        pop_cont = pop_cont
+        ),
+    #limits
+    ylim = c(0,1.5 * max(y_dat)),
+    xlim = c(t_dat_plot[1],t_dat_plot[1] + tau),
+    ## labels
+    title = "Fitted Population Model", 
+    ylab="Mosquito population count",
+    xlab="Day of year",
+    ## legend data
+    LegendData = "Data", 
+    LegendUnCont = "Uncontrolled Fourier Approximation", 
+    LgendCont = "Controlled Fourier Approximation"
+    )
+    
+    # print("Plot Object")
+    # str(PlotObject)
+    
+    OptOutPutObject <- list(PlotObject = PlotObject, PrintObj = PrintObj)
+    
+   
+    
+  }) 
   
+
+  #render plots
   
+  output$OptModel <- renderPlot(bg = "transparent",{
+    OptModel <-   OptModel()$PlotObject
+    
+     print("str inside render function")
+     
+     str(OptModel)
+     # str(MO)
+     
+    
+    print("pop_un_cont inside df_lines")
+    
+    str(OptModel$df_lines)
+     
+     ggplot() +
+       geom_line(data = OptModel$df_lines, aes(x = t_vec_plot, y = pop_un_cont, color = "Uncontrolled Population"), size = 1.5 ) +
+       geom_line(data = OptModel$df_lines, aes(x = t_vec_plot, y = pop_cont, color = "Controlled Population"), size = 1.5 ) +
+       geom_point(data = OptModel$df_points, aes(x = t_dat, y = y_dat, color = "Mean Count"), alpha = .75) +
+       scale_color_manual(values = c("#1b9e77","#ffffff","#d95f02")) +
+       theme_minimal() +
+       theme(panel.grid  =  element_line(colour = "dark grey"),
+             text = element_text(colour = "white"),
+             axis.text = element_text(colour = "white")) +
+       theme(legend.position ="bottom") +
+       xlab(OptModel$ylab) +
+       ylab(OptModel$xlab)
+     
+  
+    })
+  
+
+  
+  #render text
+  
+  #render text
+  
+  #render text
+    
   
   
   
