@@ -1296,7 +1296,7 @@ server <- function(input, output, session) {
     PlotObject <- list(
       #point dataframe
       df_points = data.frame(
-        t_dat = t_dat,
+        t_dat_plot = t_dat_plot,
         y_dat = y_dat), 
       #line dataframe
       df_lines = data.frame(
@@ -1345,15 +1345,15 @@ server <- function(input, output, session) {
      ggplot() +
        geom_line(data = OptModel$df_lines, aes(x = t_vec_plot, y = pop_un_cont, color = "Uncontrolled Population"), size = 1.5 ) +
        geom_line(data = OptModel$df_lines, aes(x = t_vec_plot, y = pop_cont, color = "Controlled Population"), size = 1.5 ) +
-       geom_point(data = OptModel$df_points, aes(x = t_dat, y = y_dat, color = "Mean Count"), alpha = .75) +
+       geom_point(data = OptModel$df_points, aes(x = t_dat_plot, y = y_dat, color = "Mean Count"), alpha = .75) +
        scale_color_manual(values = c("#1b9e77","#ffffff","#d95f02")) +
        theme_minimal() +
        theme(panel.grid  =  element_line(colour = "dark grey"),
              text = element_text(colour = "white"),
              axis.text = element_text(colour = "white")) +
        theme(legend.position ="bottom") +
-       xlab(OptModel$ylab) +
-       ylab(OptModel$xlab)
+       xlab(OptModel$xlab) +
+       ylab(OptModel$ylab)
      
   
     })
