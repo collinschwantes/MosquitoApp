@@ -75,21 +75,61 @@ ui <- fluidPage(
       #             c("Oviposition" = "ovi",
       #               "Light" = "lig",
       #               "CO2" = "CO2  ")),
-      selectInput("Count", "Count Data:",
-                  c("No data uploaded data" = "NoData")
-                  ),
-      selectInput("Date", "Date:",
-                  c("No data uploaded data" = "NoData")
-                  ),
-      # selectInput("Species", "Species:",
+      # selectInput("Count", "Count Data:",
       #             c("No data uploaded data" = "NoData")
-      # ),
-      # selectInput("Lat", "Latitude:",
+      #             ),
+      # selectInput("Date", "Date:",
       #             c("No data uploaded data" = "NoData")
-      # ),
-      # selectInput("Lon", "Longitude:",
-      #             c("No data uploaded data" = "NoData")
-      # ),
+      #             ),
+      bsCollapse(id = "collapseParameters",  multiple = T, 
+                 open = c("Column Selections", "Population Model Parameters"),
+        bsCollapsePanel("Column Selections", style = NULL,
+                        selectInput("Count", "Count Data:",
+                                    c("No data uploaded data" = "NoData")
+                        ),
+                        selectInput("Date", "Date:",
+                                    c("No data uploaded data" = "NoData")
+                        )
+                        
+        ),         
+        bsCollapsePanel("Population Model Parameters",  style = NULL,
+                        sliderInput(inputId = "MosLife",
+                          label = "Mosquito Lifespan in Days",
+                          min = 1,max = 30,value = 3,step = 1),
+                        sliderInput(inputId = "MosDecay",
+                          label = "Mosquito Lifecycles Between Seasons",
+                          min = 2,max = 100,value = 3,step = 1),
+                        sliderInput(inputId = "Jmax", label = "Emergence Fourier Modes",
+                          value = 10,min = 1,max = 200, step = 1)
+        ),
+        bsCollapsePanel("Resource Optimization Parameters", style = NULL,
+                          em("Treatment Inputs:"),
+                                 numericInput(inputId = "rho",
+                                              label = "Percent Knockdown",
+                                              min = 1,max = 30, value = 15,
+                                              step = 1),
+                                 numericInput(inputId = "Npulse",
+                                              label = "Number of Applications",
+                                              min = 0,max = 10, value = 3,step = 1),
+                                 numericInput(inputId = "days_between",
+                                              label = "Minimum Days Between Applications",
+                                              min = 0,max = 300, value = 7,step = 7),
+                          em("Model Controls:"),
+                                 sliderInput(inputId = "Kmax", 
+                                             label = "Average Population Fourier modes", 
+                                             value = 1,min = 1,max = 50 ),
+                          ## add global opt parameter 
+                                 selectInput(inputId = "global_opt", 
+                                             label = "Optimization Algorithm", 
+                                             choices =  c("Local - Fastest" = 0,
+                                                          "Global - GN_DIRECT_L_RAND" = 1,
+                                                          "Global - GN_ISRES" = 2),
+                                             selected = 0),
+                                 sliderInput(inputId = "JmaxOpt", 
+                                             label = "Emergence Fourier Modes", 
+                                             value = 1,min = 1,max = 200, step = 1))
+      ),
+      
       tableOutput("data")
       )
     ),
@@ -176,12 +216,12 @@ ui <- fluidPage(
                         
                  )
                  ),
-                 fluidRow(
+                 fluidRow( 
                    h4("Model Controls:"),
                  column(width = 4,
-                        numericInput(inputId = "Kmax", 
-                                     label = "Number of Opitimum Searches (Kmax)", 
-                                     value = 1,min = 1,max = 10 )
+                        sliderInput(inputId = "Kmax", 
+                                     label = "Average Population Fourier modes", 
+                                     value = 1,min = 1,max = 50 )
                         ),
                  ## add global opt parameter 
                  column(width = 4,
