@@ -135,7 +135,7 @@ ui <- fluidPage(
                                                 label = "Mosquito Lifecycles Between Seasons",
                                                 min = 2,max = 100,value = 3,step = 1)),
                   column(width = 4,
-                         sliderInput(inputId = "Jmax", label = "Fourier Modes (Accurarcy vs Speed)",
+                         sliderInput(inputId = "Jmax", label = "Emergence Fourier Modes",
                                       value = 10,min = 1,max = 200, step = 1)
                   )
                  ),
@@ -194,7 +194,7 @@ ui <- fluidPage(
                         ),
                   column(width = 4,
                         sliderInput(inputId = "JmaxOpt", 
-                                  label = "Fourier Modes (Accurarcy vs Speed)",
+                                  label = "Emergence Fourier Modes", 
                                   value = 1,min = 1,max = 200, step = 1))
                  ),
                  hr(),
