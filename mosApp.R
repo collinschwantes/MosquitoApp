@@ -84,12 +84,12 @@ ui <- fluidPage(
       # selectInput("Species", "Species:",
       #             c("No data uploaded data" = "NoData")
       # ),
-      selectInput("Lat", "Latitude:",
-                  c("No data uploaded data" = "NoData")
-      ),
-      selectInput("Lon", "Longitude:",
-                  c("No data uploaded data" = "NoData")
-      ),
+      # selectInput("Lat", "Latitude:",
+      #             c("No data uploaded data" = "NoData")
+      # ),
+      # selectInput("Lon", "Longitude:",
+      #             c("No data uploaded data" = "NoData")
+      # ),
       tableOutput("data")
       )
     ),
@@ -171,7 +171,7 @@ ui <- fluidPage(
                  ),
                  column(width = 4,
                         numericInput(inputId = "days_between",
-                                     label = "Days Between Applications",
+                                     label = "Minimum Days Between Applications",
                                      min = 0,max = 300, value = 7,step = 7)
                         
                  )
@@ -203,7 +203,19 @@ ui <- fluidPage(
                    column(width = 8, h4("Fitted Population Model", style = "text-align: center;"),
                           withSpinner(plotOutput("OptModel"))
                    ),
-                   column(width = 4, h4("Summary Statistics", style = "text-align: center;") 
+                   column(width = 4, #h4("Summary Statistics", style = "text-align: center;"),
+                          em("Percent Reduction"),
+                          h4(textOutput("percent_reduction")),
+                          em("Accuracy Measure"),
+                          h4(textOutput("accuracy_measure")),
+                          em("Control Times (day of year)"),
+                          h4(textOutput("PulseTimes")),
+                          em("Average Population"),
+                          h4(textOutput("AvePopUnCont")),
+                          em("Average Controlled Population"),
+                          h4(textOutput("AvePopCont"))
+                          
+                          
                           
                    )
                    
@@ -328,17 +340,17 @@ server <- function(input, output, session) {
     #                   selected = ""
     # )
 # 
-    updateSelectInput(session, "Lat",
-                      label = "Latitude Column",
-                      choices = ColNames,
-                      selected = ""
-    )
-
-    updateSelectInput(session, "Lon",
-                      label = "Longitude Column",
-                      choices = ColNames,
-                      selected = ""
-    )
+    # updateSelectInput(session, "Lat",
+    #                   label = "Latitude Column",
+    #                   choices = ColNames,
+    #                   selected = ""
+    # )
+    # 
+    # updateSelectInput(session, "Lon",
+    #                   label = "Longitude Column",
+    #                   choices = ColNames,
+    #                   selected = ""
+    # )
 #    
   })
   
@@ -467,64 +479,64 @@ server <- function(input, output, session) {
        
     })
    
-   
-  ## MAP ##
-  output$DensityMap <- renderLeaflet({ 
-     if (is.null(dataFile())) 
-       return(NULL) 
-     
-     ## update these to validate and need
-     
-     validate(
-       need(input$Lat != 'NoData',"Select Latitude Column" ),
-       need(input$Lon != 'NoData', "Select Longitude Column"),
-       need(input$Count != 'NoData', "Select Count Column")
-     )
-     
-
-     #create density grid
-     
-
-    #mosRas <- raster(nrows = NumRow, ncols = NumCol)
-    
-    mospoints <- cleanData() %>% 
-      st_as_sf(coords = c(input$Lon,input$Lat),crs = 3857)
-    
-   
-    #will want to filter mospoints 
-    
-    mos_sp <- as(mospoints, "Spatial")
-    
-
-    
-    #create raster
-    mosRas <- raster()
-    
-    #give same spatial attributes as sp object
-    extent(mosRas) <- extent(mos_sp)
-    res(mosRas) <- input$Res
-    
-    str(mosRas)
-    #seems to be breaking here
-    
-    denRas <- rasterize(x = mos_sp, y = mosRas, field = 'count', fun = mean)
-    
-    summary(denRas)
-    
-    #add leaflet map
-    pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#bd0202"), values(denRas),
-                        na.color = "grey")
-    
-    leaflet() %>% 
-      addProviderTiles(providers$Stamen.Toner) %>%
-      addRasterImage(denRas, colors = pal, opacity = 0.8,project = T) %>%
-      addLegend(pal = pal, values = values(denRas),
-                title = "Mean Count") 
-  
-   })
-   
-  # output$ModelResults 
-  
+  #  
+  # ## MAP ##
+  # output$DensityMap <- renderLeaflet({ 
+  #    if (is.null(dataFile())) 
+  #      return(NULL) 
+  #    
+  #    ## update these to validate and need
+  #    
+  #    validate(
+  #      need(input$Lat != 'NoData',"Select Latitude Column" ),
+  #      need(input$Lon != 'NoData', "Select Longitude Column"),
+  #      need(input$Count != 'NoData', "Select Count Column")
+  #    )
+  #    
+  # 
+  #    #create density grid
+  #    
+  # 
+  #   #mosRas <- raster(nrows = NumRow, ncols = NumCol)
+  #   
+  #   mospoints <- cleanData() %>% 
+  #     st_as_sf(coords = c(input$Lon,input$Lat),crs = 3857)
+  #   
+  #  
+  #   #will want to filter mospoints 
+  #   
+  #   mos_sp <- as(mospoints, "Spatial")
+  #   
+  # 
+  #   
+  #   #create raster
+  #   mosRas <- raster()
+  #   
+  #   #give same spatial attributes as sp object
+  #   extent(mosRas) <- extent(mos_sp)
+  #   res(mosRas) <- input$Res
+  #   
+  #   str(mosRas)
+  #   #seems to be breaking here
+  #   
+  #   denRas <- rasterize(x = mos_sp, y = mosRas, field = 'count', fun = mean)
+  #   
+  #   summary(denRas)
+  #   
+  #   #add leaflet map
+  #   pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#bd0202"), values(denRas),
+  #                       na.color = "grey")
+  #   
+  #   leaflet() %>% 
+  #     addProviderTiles(providers$Stamen.Toner) %>%
+  #     addRasterImage(denRas, colors = pal, opacity = 0.8,project = T) %>%
+  #     addLegend(pal = pal, values = values(denRas),
+  #               title = "Mean Count") 
+  # 
+  #  })
+  #  
+  # # output$ModelResults 
+  # 
   
   ModelOutputs <- reactive({
     
@@ -926,6 +938,9 @@ server <- function(input, output, session) {
     # N_lam = max fourier mode order to calculate
     
     N_lam <- input$JmaxOpt  #user input between 1 and 100, default value 25 (I referred to this as jmax over Skype - JD)
+    
+    print("N_lam created")
+    print(N_lam)
     
     # day of the year 
     
@@ -1330,17 +1345,8 @@ server <- function(input, output, session) {
   #render plots
   
   output$OptModel <- renderPlot(bg = "transparent",{
+    
     OptModel <-   OptModel()$PlotObject
-    
-     print("str inside render function")
-     
-     str(OptModel)
-     # str(MO)
-     
-    
-    print("pop_un_cont inside df_lines")
-    
-    str(OptModel$df_lines)
      
      ggplot() +
        geom_line(data = OptModel$df_lines, aes(x = t_vec_plot, y = pop_un_cont, color = "Uncontrolled Population"), size = 1.5 ) +
@@ -1353,7 +1359,7 @@ server <- function(input, output, session) {
              axis.text = element_text(colour = "white")) +
        theme(legend.position ="bottom") +
        xlab(OptModel$xlab) +
-       ylab(OptModel$ylab)
+       ylab(OptModel$ylab) 
      
   
     })
@@ -1361,10 +1367,56 @@ server <- function(input, output, session) {
 
   
   #render text
+  output$PulseTimes <- renderText({
+    
+    PrintObj <- OptModel()$PrintObj$pulse_times_output
+    
+    
+    paste(round(PrintObj,0),collapse = ", ")
+
+  })
   
-  #render text
   
-  #render text
+  output$AvePopUnCont <- renderText({
+    
+    PrintObj <- OptModel()$PrintObj$ave_pop_un_cont
+    
+    round(PrintObj,3)
+    
+  })  
+  
+  output$AvePopCont <- renderText({
+    
+    PrintObj <- OptModel()$PrintObj$ave_pop_cont
+    
+    round(PrintObj,3)
+    
+  })  
+  
+  
+  output$percent_reduction <- renderText({
+    
+    PrintObj <- OptModel()$PrintObj$percent_reduction
+    
+    paste0(round(100*PrintObj,3)," %")
+    
+  })
+  
+  
+  output$accuracy_measure <- renderText({
+    
+    PrintObj <- OptModel()$PrintObj$accuracy_measure
+    
+    PrintObj <- round(PrintObj,4)
+    
+    if ( PrintObj > .1) {
+      paste(PrintObj,"/nWarning: increase Kmax to improve accuracy")
+    } else (
+      PrintObj
+      )
+    
+  })
+
     
   
   
