@@ -18,6 +18,8 @@ library(NlcOptim)
 library(shinycssloaders)
 library(nloptr)
 library(sfsmisc) 
+library(shinyBS)
+
 
 source("OptimalControlFunctions.R")
 
