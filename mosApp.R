@@ -166,20 +166,6 @@ ui <- fluidPage(
         #          leafletOutput("DensityMap"),
         #          sliderInput(inputId = "Res",label = "Resolution Slider",min = 0.001,max = 0.1,value = .01,step = .005)),
         tabPanel("Mosquito Population Model",
-                 br(),
-                 fluidRow(
-                  column(width = 4, sliderInput(inputId = "MosLife",
-                                                label = "Mosquito Lifespan in Days",
-                                                min = 1,max = 30,value = 3,step = 1)),
-                  column(width = 4, sliderInput(inputId = "MosDecay",
-                                                label = "Mosquito Lifecycles Between Seasons",
-                                                min = 2,max = 100,value = 3,step = 1)),
-                  column(width = 4,
-                         sliderInput(inputId = "Jmax", label = "Emergence Fourier Modes",
-                                      value = 10,min = 1,max = 200, step = 1)
-                  )
-                 ),
-                 hr(),
                  fluidRow(
 
                    column(width = 6, h4("Fitted Population Model", style = "text-align: center;"),
@@ -194,50 +180,7 @@ ui <- fluidPage(
                     )
                  ),
         tabPanel("Resouce Optimization Model",
-                 tags$h3("Model Parameters"),
-                 fluidRow(
-                   h4("Treatment Inputs:"),
-                 column(width = 4,
-                   numericInput(inputId = "rho",
-                                label = "Percent Knockdown",
-                                min = 1,max = 30, value = 15,
-                                step = 1)
-                   ),
-                 column(width = 4,
-                 numericInput(inputId = "Npulse",
-                              label = "Number of Applications",
-                              min = 0,max = 10, value = 3,step = 1)
-        
-                 ),
-                 column(width = 4,
-                        numericInput(inputId = "days_between",
-                                     label = "Minimum Days Between Applications",
-                                     min = 0,max = 300, value = 7,step = 7)
-                        
-                 )
-                 ),
-                 fluidRow( 
-                   h4("Model Controls:"),
-                 column(width = 4,
-                        sliderInput(inputId = "Kmax", 
-                                     label = "Average Population Fourier modes", 
-                                     value = 1,min = 1,max = 50 )
-                        ),
-                 ## add global opt parameter 
-                 column(width = 4,
-                        selectInput(inputId = "global_opt", 
-                                    label = "Optimization Algorithm", 
-                                    choices =  c("Local - Fastest" = 0,
-                                                 "Global - GN_DIRECT_L_RAND" = 1,
-                                                 "Global - GN_ISRES" = 2),
-                                    selected = 0)
-                        ),
-                  column(width = 4,
-                        sliderInput(inputId = "JmaxOpt", 
-                                  label = "Emergence Fourier Modes", 
-                                  value = 1,min = 1,max = 200, step = 1))
-                 ),
-                 hr(),
+                 
                  fluidRow(
                    
                    column(width = 8, h4("Fitted Population Model", style = "text-align: center;"),
@@ -780,7 +723,7 @@ server <- function(input, output, session) {
     y_fourier_uncontrolled = numeric(t_steps)
     val_fourier = numeric(t_steps)
     
-    
+    y_best_fit_uncontrolled = numeric(t_steps) ## adding optimal model to pop graph
     
     
     
@@ -814,6 +757,14 @@ server <- function(input, output, session) {
       y_fourier_uncontrolled[k] = y_dat[1] * exp(- mu * t_vec[k]) +
         (lam_fourier[1] / mu ) * (1 - exp(-mu * t_vec[k])) +  val_fourier[k]
       
+      for (j in 1: N_pts - 1){                                                          #new 11/10
+        if (mod(t_vec[k-1], tau) >= t_dat[j] && mod(t_vec[k-1],tau) < t_dat[j + 1]){    #new 11/10
+          
+          
+          y_best_fit_uncontrolled[k] = y_best_fit_uncontrolled[k-1] +(-mu * y_best_fit_uncontrolled[k-1]  +lambda_dat$par[j+1] * (mod(t_vec[k-1], tau) -t_dat[j])/ delta_t_dat[j] +lambda_dat$par[j] * (t_dat[j+1]  -mod(t_vec[k-1], tau)) / delta_t_dat[j])*(t_vec[k] - t_vec[k-1])                   #new 11/10
+        }                                                                             #new 11/10
+      }
+      
     }
     
     
@@ -821,11 +772,15 @@ server <- function(input, output, session) {
     lambda_fourier_plot = numeric(10 * tau + 1)
     t_vec_plot = numeric(10 * tau + 1)
     
+    y_best_fit_uncontrolled_plot = numeric(10 * tau + 1)  ## for optimal pop graph
+    
     for( i in 1 : (10*tau+1)){
       
       
       y_uncontrolled_plot[i] = y_fourier_uncontrolled[(i + 10*tau*5)]
       lambda_fourier_plot[(i)] = lambda_fourier_function[(i+ 10*tau*5)]
+      
+      y_best_fit_uncontrolled_plot[i] = y_best_fit_uncontrolled[(i + 10*tau*5)]; # for pop graph
       
       #new code shifts times back to orginal values for model output
       if( t_in[1] - m / mu > 0){
@@ -855,9 +810,9 @@ server <- function(input, output, session) {
                                      "MeanMosPop" = y_dat, 
                                      stringsAsFactors = F),
     "FittedPopModel" =  data.frame("FittedTime" = t_vec_plot, 
-                                   "FittedPop" = as.numeric(y_uncontrolled_plot), # convertfor plotting
+                                   "FourierPop" = as.numeric(y_uncontrolled_plot), # convertfor plotting - fourier
+                                   "BestFitPop" = as.numeric(y_best_fit_uncontrolled_plot), ## adding best fit plot
                                    stringsAsFactors = F),
-    
     #for emergence model
     "FittedEmergencePoints" = data.frame("DayOfYear" = t_dat_plot,
                                         "EmergenceRate" =  as.numeric(lambda_dat$par)),
@@ -879,9 +834,10 @@ server <- function(input, output, session) {
       # str(MO)
       
       ggplot() +
-         geom_line(data = MO$FittedPopModel, aes(x = FittedTime, y = FittedPop, color = "Fitted Population"), size = 1.5 ) +
+        geom_line(data = MO$FittedPopModel, aes(x =FittedTime , y = BestFitPop, color = "Best Fit Population Model"), size = 1.5 ) +
+        geom_line(data = MO$FittedPopModel, aes(x = FittedTime, y = FourierPop, color = "Fitted Model Fourier Approximation"), size = 1.5 ) +
         geom_point(data = MO$SummarizedPopData, aes(x = DayOfYear, y = MeanMosPop, color = "Mean Count"), alpha = .75) +
-        scale_color_manual(values = c("#225ea8","#ffffff")) +
+        scale_color_manual(values = c("#1b9e77","#225ea8","#ffffff")) +
         theme_minimal() +
         theme(panel.grid  =  element_line(colour = "dark grey"),
               text = element_text(colour = "white"),
@@ -902,9 +858,10 @@ server <- function(input, output, session) {
     # str(MO)
     
     ggplot() +
-      geom_line(data = MO$ApproximatedEmergenceRate, aes(x = FittedTime, y = ApproxEmergence, color = "Emergence Approximation"), size = 1.5 ) +
+      geom_line(data = MO$FittedEmergencePoints, aes(x = DayOfYear, y = EmergenceRate, color = "Best Fit Emergence Model"),  size = 1.5) +
+      geom_line(data = MO$ApproximatedEmergenceRate, aes(x = FittedTime, y = ApproxEmergence, color = "Fitted Emergence Function Fourier Approximation"), size = 1.5 ) +
       geom_point(data = MO$FittedEmergencePoints, aes(x = DayOfYear, y = EmergenceRate, color = "Mean Count"), alpha = .75) +
-      scale_color_manual(values = c("#c7e9b4","#ffffff")) +
+      scale_color_manual(values = c("#1b9e77","#225ea8","#ffffff")) +
       theme_minimal() +
       theme(panel.grid  =  element_line(colour = "dark grey"),
             text = element_text(colour = "white"),
