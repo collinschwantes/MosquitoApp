@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/166722821.svg)](https://zenodo.org/badge/latestdoi/166722821)
+
 ### Mosquito Control Aid 
 
 This project aims to make an accessible model for mosquito control resource optimization. The model uses data provided by users to estimate the mosquito populations in the sampling area for the sampling timeperiod, and the optimal time to apply a treatment or multiple treatments.
